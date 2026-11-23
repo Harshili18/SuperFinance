@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: superfinance
+      POSTGRES_PASSWORD: superfinance
+      POSTGRES_DB: superfinance
+    ports:
+      - "5432:5432"
+    volumes:
+      - sf_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U superfinance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://superfinance:superfinance@db:5432/superfinance
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+      STORAGE_DIR: /data/storage
+    volumes:
+      - sf_files:/data/storage
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  sf_pg:
+  sf_files:
