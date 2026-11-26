@@ -77,7 +77,7 @@ export function Login() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(15,107,76,0.12),_transparent_55%)]" />
       <div className="pointer-events-none absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
-      <div className="relative w-full max-w-md rounded-3xl border border-border/80 bg-card p-7 text-card-foreground shadow-soft">
+      <div className="relative w-full max-w-md rounded-3xl border border-border/80 bg-card p-[1.75rem] text-card-foreground shadow-soft">
         <Link to="/" className="inline-flex items-center gap-2">
           <span className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">S</span>
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">SuperFinance</span>
