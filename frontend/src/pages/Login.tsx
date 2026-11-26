@@ -46,6 +46,16 @@ export function Login() {
     }
   }
 
+  function loginErrorMessage(err: unknown): string {
+    if (err instanceof ApiError) {
+      if (err.status === 404 || err.status === 502 || err.status === 503) {
+        return "API is not connected yet. The Vercel site is frontend-only — deploy the FastAPI backend and set VITE_API_BASE_URL (or an /api rewrite).";
+      }
+      return err.message;
+    }
+    return "Could not sign in. Check that the API is running and reachable.";
+  }
+
   async function loginEmail(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -54,7 +64,7 @@ export function Login() {
       await api("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
       nav("/overview");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not sign in.");
+      setError(loginErrorMessage(err));
     } finally {
       setBusy(false);
     }

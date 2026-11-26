@@ -218,7 +218,8 @@ def startup():
     _ensure_columns()
     db = SessionLocal()
     try:
-        if settings.is_dev and not db.scalar(select(Organization)):
+        empty = not db.scalar(select(Organization))
+        if empty and (settings.is_dev or settings.allow_initial_seed):
             seed(db)
         _ensure_coa(db)
         _ensure_demo_people(db)

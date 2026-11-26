@@ -1,0 +1,36 @@
+# Deploy API + Postgres on Render: Dashboard → New → Blueprint → this repo
+# After deploy, set CORS_ORIGINS to your Vercel URL (https://….vercel.app)
+
+databases:
+  - name: superfinance-db
+    plan: free
+
+services:
+  - type: web
+    name: superfinance-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: superfinance-db
+          property: connectionString
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: ALLOW_INITIAL_SEED
+        value: "true"
+      - key: STORAGE_DIR
+        value: /data/storage

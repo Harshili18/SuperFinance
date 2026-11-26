@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     # lax = same-site / reverse-proxy; none = cross-site FE↔API (requires Secure)
     cookie_samesite: str = "lax"
+    # First empty production DB only: seed demo org/users so email login works once
+    allow_initial_seed: bool = False
 
     @property
     def is_dev(self) -> bool:

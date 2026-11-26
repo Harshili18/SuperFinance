@@ -97,11 +97,25 @@ Compose defaults are **demo-only** (including DB password). Rotate before any sh
 4. Node **20.x** or **22.x**
 5. SPA rewrites: `frontend/vercel.json` (already included)
 
+Vercel hosts the **UI only**. Login calls `/api/v1/...` — without a backend those requests 404.
+
+### Backend on Render (simple path)
+
+1. [render.com](https://render.com) → **New → Blueprint** → connect this GitHub repo (`render.yaml`).
+2. When prompted, set:
+   - `CORS_ORIGINS` = your Vercel URL (e.g. `https://super-finance-five.vercel.app`)
+   - `FRONTEND_ORIGIN` = same URL
+3. Wait for `superfinance-api` to go live. Open `https://YOUR-API.onrender.com/api/v1/health` — should return `ok`.
+4. In **Vercel → Project → Settings → Environment Variables** add:
+   - `VITE_API_BASE_URL` = `https://YOUR-API.onrender.com` (no trailing slash)
+5. **Redeploy** the Vercel project (required so the build picks up the env var).
+6. Sign in with the seeded demo email/password from the README (enabled via `ALLOW_INITIAL_SEED` on first empty DB).
+
 **API routing (pick one):**
 
 **A — Recommended same-site proxy:** put `https://yourdomain.com/api` → FastAPI (nginx / Cloudflare / Vercel rewrite to API URL). Leave `VITE_API_BASE_URL` empty so the SPA keeps relative `/api` calls.
 
-**B — Split origins:** set Vercel env `VITE_API_BASE_URL=https://api.yourdomain.com` (no trailing slash) for the build, and on the API set `COOKIE_SECURE=true`, `COOKIE_SAMESITE=none`, and `CORS_ORIGINS` to the Vercel URL.
+**B — Split origins (Vercel + Render):** set Vercel `VITE_API_BASE_URL` as above; API uses `COOKIE_SECURE=true` and `COOKIE_SAMESITE=none`.
 
 Template: `frontend/.env.example`.
 
