@@ -138,3 +138,6 @@ Never expose `/api/docs` publicly without auth (docs are disabled when `ENVIRONM
 ```
 
 Before every commit/push: confirm `.env`, `*.db`, and `storage/` are **not** staged. They are gitignored by default.
+
+
+some random text so that i can commit
