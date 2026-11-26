@@ -1,18 +1,43 @@
+# Secrets & local env (never commit)
 .env
-.venv
-.tools/
-venv
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python
+.venv/
+venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+
+# Local tooling
+.tools/
+
+# Local database & uploads
 backend/storage/
 backend/*.db
 backend/*.db-journal
+*.db
+*.db-journal
+storage/
+
+# Node / frontend build
 node_modules/
 frontend/dist/
-frontend/.env
+frontend/tsconfig.tsbuildinfo
+
+# Hosting / IDE / OS
+.vercel/
+*.pem
+*.key
+credentials.json
 .DS_Store
 Thumbs.db
 .idea/

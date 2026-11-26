@@ -58,25 +58,25 @@ export function Camps() {
   }, [rows]);
 
   return (
-    <div>
+    <div className="space-y-3">
       <PageHeader
         title="Camps"
         subtitle="Revenue, cost, profit % and ROI from camp-linked money in and money out."
         actions={
           <div className="flex gap-2">
-            <button className="h-9 rounded-md border border-border px-3 text-sm" onClick={() => downloadExport("camps")}>Export CSV</button>
-            <button className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground" onClick={() => setOpen(true)}>New camp</button>
+            <button className="btn-secondary" onClick={() => downloadExport("camps")}>Export CSV</button>
+            <button className="btn-primary" onClick={() => setOpen(true)}>New camp</button>
           </div>
         }
       />
 
       {open ? (
         <form
-          className="mt-4 flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3"
+          className="surface-card flex flex-wrap gap-2 p-3.5"
           onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
         >
-          <input className="h-9 rounded-md border border-border px-2 text-sm" placeholder="Camp name" value={name} onChange={(e) => setName(e.target.value)} required />
-          <input className="h-9 rounded-md border border-border px-2 text-sm" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input className={inputClass + " max-w-xs"} placeholder="Camp name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className={inputClass + " w-auto"} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <select className={inputClass + " w-auto"} value={city} onChange={(e) => setCity(e.target.value)}>
             <option value="">City</option>
             {lu?.cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -89,12 +89,12 @@ export function Camps() {
             <option value="b2b">B2B</option>
             <option value="b2c">B2C</option>
           </select>
-          <button className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">Create</button>
-          <button type="button" className="h-9 px-3 text-sm text-muted-foreground" onClick={() => setOpen(false)}>Cancel</button>
+          <button className="btn-primary">Create</button>
+          <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
         </form>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <KpiCard label="Camps" kpi={{ value: totals.camps }} format="number" />
         <KpiCard label="Revenue" kpi={{ value: totals.revenue }} />
         <KpiCard label="Cost" kpi={{ value: totals.cost }} />
@@ -103,30 +103,28 @@ export function Camps() {
         <KpiCard label="Profit %" kpi={{ value: totals.profitPct }} format="pct" />
       </div>
 
-      <div className="mt-5">
-        <DataTable
-          rows={rows.map((r) => ({ ...r, id: r.camp_id }))}
-          onRow={(r) => nav(`/camps/${r.camp_id}`)}
-          empty="No camps yet. Add your first camp."
-          columns={[
-            { key: "name", label: "Camp" },
-            { key: "city", label: "City" },
-            { key: "client", label: "Client" },
-            { key: "date", label: "Date" },
-            { key: "revenue", label: "Revenue", align: "right", render: (r) => inr(Number(r.revenue)) },
-            { key: "total_cost", label: "Cost", align: "right", render: (r) => inr(Number(r.total_cost)) },
-            {
-              key: "net_profit",
-              label: "Profit",
-              align: "right",
-              render: (r) => <span className={Number(r.net_profit) >= 0 ? "" : "text-negative"}>{inr(Number(r.net_profit))}</span>,
-            },
-            { key: "margin", label: "Margin", align: "right", render: (r) => pct(Number(r.margin)) },
-            { key: "roi", label: "ROI", align: "right", render: (r) => pct(Number(r.roi)) },
-            { key: "status", label: "Status" },
-          ]}
-        />
-      </div>
+      <DataTable
+        rows={rows.map((r) => ({ ...r, id: r.camp_id }))}
+        onRow={(r) => nav(`/camps/${r.camp_id}`)}
+        empty="No camps yet. Add your first camp."
+        columns={[
+          { key: "name", label: "Camp" },
+          { key: "city", label: "City" },
+          { key: "client", label: "Client" },
+          { key: "date", label: "Date" },
+          { key: "revenue", label: "Revenue", align: "right", render: (r) => inr(Number(r.revenue)) },
+          { key: "total_cost", label: "Cost", align: "right", render: (r) => inr(Number(r.total_cost)) },
+          {
+            key: "net_profit",
+            label: "Profit",
+            align: "right",
+            render: (r) => <span className={Number(r.net_profit) >= 0 ? "" : "text-negative"}>{inr(Number(r.net_profit))}</span>,
+          },
+          { key: "margin", label: "Margin", align: "right", render: (r) => pct(Number(r.margin)) },
+          { key: "roi", label: "ROI", align: "right", render: (r) => pct(Number(r.roi)) },
+          { key: "status", label: "Status" },
+        ]}
+      />
     </div>
   );
 }

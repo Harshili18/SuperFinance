@@ -26,6 +26,14 @@ _WEAK_SECRETS = {
 if not settings.is_dev and settings.secret_key in _WEAK_SECRETS:
     raise RuntimeError("Set a strong SECRET_KEY before running with ENVIRONMENT=production.")
 
+if not settings.is_dev and not settings.cookie_secure:
+    raise RuntimeError(
+        "Set COOKIE_SECURE=true for ENVIRONMENT=production (HTTPS auth cookies)."
+    )
+
+# Validate cookie settings early (raises if none without secure in prod)
+_ = settings.cookie_kwargs
+
 app = FastAPI(
     title="SUPERFINANCE",
     version="0.2.0",

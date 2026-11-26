@@ -92,28 +92,28 @@ export function CampDetail() {
   const packageRows = moneyIn;
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 space-y-3">
       <PageHeader
         title={data.name}
         subtitle={`${data.camp_number} · ${data.city || "—"} · ${data.client || "B2C"} · ${data.date}`}
         actions={
           <>
-            <button className="h-8 rounded-md border border-border px-2.5 text-xs" onClick={() => setForm("revenue")}>Revenue</button>
-            <button className="h-8 rounded-md border border-border px-2.5 text-xs" onClick={() => setForm("expense")}>Expense</button>
-            <button className="h-8 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground" onClick={() => setForm("traveller")}>Camp claim</button>
+            <button className="btn-secondary h-8 text-xs" onClick={() => setForm("revenue")}>Revenue</button>
+            <button className="btn-secondary h-8 text-xs" onClick={() => setForm("expense")}>Expense</button>
+            <button className="btn-primary h-8 text-xs" onClick={() => setForm("traveller")}>Camp claim</button>
           </>
         }
       />
 
       {form !== "none" && id ? (
-        <div className="mt-3 rounded-md border border-border bg-card p-3">
+        <div className="surface-card p-3.5">
           {form === "expense" ? <ExpenseForm campId={id} onDone={() => setForm("none")} /> : null}
           {form === "revenue" ? <RevenueForm campId={id} onDone={() => setForm("none")} /> : null}
           {form === "traveller" ? <CampTravellerForm campId={id} onDone={() => setForm("none")} /> : null}
         </div>
       ) : null}
 
-      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         <KpiCard label="Revenue" kpi={{ value: data.revenue }} />
         <KpiCard label="Direct cost" kpi={{ value: data.direct_cost }} />
         <KpiCard label="Allocated" kpi={{ value: data.allocated_cost }} sub="Not double-counted in company OpEx" />
@@ -121,39 +121,65 @@ export function CampDetail() {
         <KpiCard label="ROI" kpi={{ value: data.roi }} format="pct" />
       </div>
 
-      <div className="my-3">
-        <Chips
-          value={tab}
-          onChange={setTab}
-          options={[
-            { id: "overview", label: "Overview" },
-            { id: "revenue", label: "Revenue" },
-            { id: "expenses", label: "Expenses" },
-            { id: "packages", label: "Package sales" },
-            { id: "partners", label: "Diagnostic costs" },
-            { id: "staff", label: "Staff & reimbursements" },
-            { id: "profit", label: "Profitability" },
-            { id: "docs", label: "Documents" },
-          ]}
-        />
-      </div>
+      <Chips
+        value={tab}
+        onChange={setTab}
+        options={[
+          { id: "overview", label: "Overview" },
+          { id: "revenue", label: "Revenue" },
+          { id: "expenses", label: "Expenses" },
+          { id: "packages", label: "Package sales" },
+          { id: "partners", label: "Diagnostic costs" },
+          { id: "staff", label: "Staff & reimbursements" },
+          { id: "profit", label: "Profitability" },
+          { id: "docs", label: "Documents" },
+        ]}
+      />
 
       {tab === "overview" || tab === "profit" ? (
         <Section title="Analysis" hint={`Contribution ${inr(data.contribution ?? data.revenue - data.direct_cost)} · Profit ${pct(data.margin)} · ROI ${pct(data.roi)}`}>
-          <ul className="space-y-1.5 text-sm">
+          <ul className="space-y-1 text-sm">
             {(data.analysis || [
               `Camp contribution = revenue − direct costs.`,
               `Camp net profit = revenue − direct − allocated operating costs.`,
               `ROI = net profit / camp investment × 100.`,
             ]).map((line) => (
-              <li key={line} className="border-b border-border/70 pb-1.5 last:border-0">{line}</li>
+              <li key={line} className="border-b border-border/70 pb-1 last:border-0">{line}</li>
             ))}
           </ul>
           {data.net_profit < 0 ? <p className="mt-2 text-sm font-semibold text-negative">This camp is loss-making.</p> : null}
         </Section>
       ) : null}
 
-      {tab === "overview" || tab === "revenue" || tab === "packages" ? (
+      {tab === "overview" ? (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Section title="Money in">
+            <DataTable
+              rows={packageRows as unknown as Record<string, unknown>[]}
+              empty="No incoming money yet."
+              columns={[
+                { key: "date", label: "Date" },
+                { key: "description", label: "Description" },
+                { key: "amount", label: "Amount", align: "right", render: (r) => inr(Number(r.amount), false) },
+              ]}
+            />
+          </Section>
+          <Section title="Money out" hint="Travel, food, stay, logistics, lab, clinicians, marketing…">
+            <DataTable
+              rows={moneyOut as unknown as Record<string, unknown>[]}
+              empty="No camp costs yet."
+              columns={[
+                { key: "date", label: "Date" },
+                { key: "category", label: "For" },
+                { key: "description", label: "Description" },
+                { key: "amount", label: "Amount", align: "right", render: (r) => <span className="text-negative">{inr(Number(r.amount), false)}</span> },
+              ]}
+            />
+          </Section>
+        </div>
+      ) : null}
+
+      {tab === "revenue" || tab === "packages" ? (
         <Section title="Money in">
           <DataTable
             rows={packageRows as unknown as Record<string, unknown>[]}
@@ -167,7 +193,7 @@ export function CampDetail() {
         </Section>
       ) : null}
 
-      {tab === "overview" || tab === "expenses" ? (
+      {tab === "expenses" ? (
         <Section title="Money out" hint="Travel, food, stay, logistics, lab, clinicians, marketing…">
           <DataTable
             rows={moneyOut as unknown as Record<string, unknown>[]}
@@ -201,7 +227,7 @@ export function CampDetail() {
           {(data.travellers || []).length ? (
             <div className="space-y-2">
               {data.travellers.map((t) => (
-                <div key={t.employee_id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+                <div key={t.employee_id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-soft px-3 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{t.employee}</p>
                     <p className="truncate text-xs text-muted-foreground">

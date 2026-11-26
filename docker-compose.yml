@@ -21,10 +21,14 @@ services:
     restart: unless-stopped
     environment:
       ENVIRONMENT: production
+      # Demo Compose credentials only — replace SECRET_KEY and DB password for any shared host
       DATABASE_URL: postgresql+psycopg://superfinance:superfinance@db:5432/superfinance
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
-      CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       STORAGE_DIR: /data/storage
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
     volumes:
       - sf_files:/data/storage
     ports:

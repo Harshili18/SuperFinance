@@ -15,10 +15,10 @@ import {
   Invoices,
   Revenue,
   Reports as PnLPage,
-  MIS,
   SettingsPage,
   Documents,
 } from "./pages/More";
+import { MIS } from "./pages/MIS";
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 

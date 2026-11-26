@@ -3,41 +3,44 @@
 @tailwind utilities;
 
 :root {
-  --background: #f5f7f6;
-  --foreground: #172121;
+  --background: #f3f5f4;
+  --foreground: #121816;
   --card: #ffffff;
-  --card-foreground: #172121;
+  --card-foreground: #121816;
   --popover: #ffffff;
-  --popover-foreground: #172121;
-  --primary: #063533;
+  --popover-foreground: #121816;
+  --primary: #0f6b4c;
   --primary-foreground: #ffffff;
-  --secondary: #e9eeec;
-  --secondary-foreground: #172121;
-  --muted: #e9eeec;
-  --muted-foreground: #667272;
-  --accent: #e9eeec;
-  --accent-foreground: #063533;
-  --destructive: #cc203b;
+  --secondary: #e8f0ec;
+  --secondary-foreground: #0f6b4c;
+  --muted: #eef1ef;
+  --muted-foreground: #6b756f;
+  --accent: #e8f0ec;
+  --accent-foreground: #0f6b4c;
+  --destructive: #c45c5c;
   --destructive-foreground: #ffffff;
-  --border: #e9eeec;
-  --input: #e9eeec;
-  --ring: #063533;
-  --radius: 0.375rem;
-  --sidebar: #063533;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #063533;
-  --sidebar-accent: #0a4a47;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #0a4a47;
-  --positive: #063533;
-  --negative: #cc203b;
-  --warning: #cc203b;
-  --chart-1: #063533;
-  --chart-2: #0a4a47;
-  --chart-3: #cc203b;
-  --chart-4: #8aa3a1;
-  --chart-5: #667272;
+  --border: #e4e9e6;
+  --input: #e4e9e6;
+  --ring: #0f6b4c;
+  --radius: 0.875rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3d4742;
+  --sidebar-primary: #0f6b4c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef7f2;
+  --sidebar-accent-foreground: #0f6b4c;
+  --sidebar-border: #e8ece9;
+  --positive: #1f8a5b;
+  --negative: #c45c5c;
+  --warning: #c4923a;
+  --chart-1: #0f6b4c;
+  --chart-2: #3d9b72;
+  --chart-3: #7bb89a;
+  --chart-4: #a8c9b8;
+  --chart-5: #c45c5c;
+  --sage: #7ba88a;
+  --surface-soft: #f7f9f8;
+  --shadow-soft: 0 1px 2px rgba(18, 24, 22, 0.04), 0 4px 16px rgba(18, 24, 22, 0.03);
 
   --sf-bg: var(--background);
   --sf-surface: var(--card);
@@ -48,25 +51,44 @@
 }
 
 .dark {
-  --background: #042422;
-  --foreground: #f5f7f6;
-  --card: #063533;
-  --card-foreground: #f5f7f6;
-  --popover: #063533;
-  --popover-foreground: #f5f7f6;
-  --primary: #8aa3a1;
-  --primary-foreground: #063533;
-  --secondary: #0a4a47;
-  --secondary-foreground: #f5f7f6;
-  --muted: #0a4a47;
-  --muted-foreground: #b7c5c4;
-  --accent: #0a4a47;
-  --accent-foreground: #f5f7f6;
-  --border: #0a4a47;
-  --input: #0a4a47;
-  --sidebar: #063533;
-  --sidebar-foreground: #ffffff;
-  --sidebar-accent: #0a4a47;
+  --background: #0c1210;
+  --foreground: #eef2f0;
+  --card: #151c19;
+  --card-foreground: #eef2f0;
+  --popover: #151c19;
+  --popover-foreground: #eef2f0;
+  --primary: #2f9e6f;
+  --primary-foreground: #04150e;
+  --secondary: #1c2923;
+  --secondary-foreground: #b8dcc9;
+  --muted: #1c2923;
+  --muted-foreground: #8fa096;
+  --accent: #1c2923;
+  --accent-foreground: #b8dcc9;
+  --destructive: #d47a7a;
+  --destructive-foreground: #0c1210;
+  --border: #24302b;
+  --input: #24302b;
+  --ring: #2f9e6f;
+  --sidebar: #101714;
+  --sidebar-foreground: #b8c4be;
+  --sidebar-primary: #2f9e6f;
+  --sidebar-primary-foreground: #04150e;
+  --sidebar-accent: #1a2822;
+  --sidebar-accent-foreground: #d7ebe0;
+  --sidebar-border: #1e2a25;
+  --positive: #3db87a;
+  --negative: #d47a7a;
+  --warning: #d4a85a;
+  --chart-1: #2f9e6f;
+  --chart-2: #4fb888;
+  --chart-3: #7bc9a4;
+  --chart-4: #a8d9c2;
+  --chart-5: #d47a7a;
+  --sage: #7bb89a;
+  --surface-soft: #121a17;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.2);
+
   --sf-bg: var(--background);
   --sf-surface: var(--card);
   --sf-card: var(--card);
@@ -84,13 +106,15 @@ body,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
 }
 
 .num {
   font-variant-numeric: tabular-nums;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: -0.02em;
 }
 
 ::-webkit-scrollbar {
@@ -98,11 +122,78 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d5dcdc;
-  border-radius: 8px;
+  background: #d5ddd8;
+  border-radius: 999px;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #0a4a47;
+  background: #2a3832;
+}
+
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border-radius: 0.75rem;
+    background: var(--primary);
+    padding: 0 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-foreground);
+    transition: filter 0.15s ease;
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:disabled { opacity: 0.6; }
+
+  .btn-secondary {
+    display: inline-flex;
+    height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    padding: 0 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    transition: background 0.15s ease;
+  }
+  .btn-secondary:hover { background: var(--muted); }
+  .btn-secondary:disabled { opacity: 0.6; }
+
+  .btn-ghost {
+    display: inline-flex;
+    height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border-radius: 0.75rem;
+    padding: 0 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .btn-ghost:hover { background: var(--muted); color: var(--foreground); }
+
+  .surface-card {
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .kpi-featured {
+    border-radius: 1rem;
+    background: var(--primary);
+    padding: 1rem;
+    color: var(--primary-foreground);
+    box-shadow: 0 10px 28px rgba(15, 107, 76, 0.22);
+  }
 }
 
 @layer utilities {
@@ -112,10 +203,12 @@ body {
   .bg-popover { background-color: var(--popover); }
   .bg-primary { background-color: var(--primary); }
   .bg-primary\/10 { background-color: color-mix(in oklab, var(--primary) 12%, transparent); }
+  .bg-primary\/15 { background-color: color-mix(in oklab, var(--primary) 15%, transparent); }
   .bg-secondary { background-color: var(--secondary); }
   .bg-sidebar { background-color: var(--sidebar); }
   .bg-sidebar-primary { background-color: var(--sidebar-primary); }
   .bg-sidebar-accent { background-color: var(--sidebar-accent); }
+  .bg-surface-soft { background-color: var(--surface-soft); }
   .text-foreground { color: var(--foreground); }
   .text-card-foreground { color: var(--card-foreground); }
   .text-muted-foreground { color: var(--muted-foreground); }
@@ -128,6 +221,7 @@ body {
   .text-sidebar-accent-foreground { color: var(--sidebar-accent-foreground); }
   .text-positive { color: var(--positive); }
   .text-negative { color: var(--negative); }
+  .text-warning { color: var(--warning); }
   .border-border { border-color: var(--border); }
   .border-input { border-color: var(--input); }
   .border-sidebar-border { border-color: var(--sidebar-border); }
@@ -138,8 +232,12 @@ body {
   .bg-sidebar-accent\/60 { background-color: color-mix(in oklab, var(--sidebar-accent) 60%, transparent); }
   .bg-muted\/60 { background-color: color-mix(in oklab, var(--muted) 60%, transparent); }
   .bg-muted\/70 { background-color: color-mix(in oklab, var(--muted) 70%, transparent); }
+  .bg-positive\/10 { background-color: color-mix(in oklab, var(--positive) 12%, transparent); }
+  .bg-negative\/10 { background-color: color-mix(in oklab, var(--negative) 12%, transparent); }
+  .bg-warning\/10 { background-color: color-mix(in oklab, var(--warning) 12%, transparent); }
   .text-sidebar-foreground\/40 { color: color-mix(in oklab, var(--sidebar-foreground) 40%, transparent); }
   .text-sidebar-foreground\/50 { color: color-mix(in oklab, var(--sidebar-foreground) 50%, transparent); }
   .text-sidebar-foreground\/65 { color: color-mix(in oklab, var(--sidebar-foreground) 65%, transparent); }
   .text-sidebar-foreground\/70 { color: color-mix(in oklab, var(--sidebar-foreground) 70%, transparent); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
 }

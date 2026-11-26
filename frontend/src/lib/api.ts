@@ -6,11 +6,24 @@ export class ApiError extends Error {
   }
 }
 
+/** API origin for split hosting. Empty = same-origin (Vite proxy or reverse proxy). */
+const API_ORIGIN = String(import.meta.env.VITE_API_BASE_URL || "")
+  .trim()
+  .replace(/\/$/, "");
+
+/** Build a full path or absolute URL under /api/v1… */
+export function apiUrl(path: string): string {
+  const suffix = path.startsWith("/api/")
+    ? path
+    : `/api/v1${path.startsWith("/") ? path : `/${path}`}`;
+  return API_ORIGIN ? `${API_ORIGIN}${suffix}` : suffix;
+}
+
 let refreshInFlight: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
   if (!refreshInFlight) {
-    refreshInFlight = fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" })
+    refreshInFlight = fetch(apiUrl("/auth/refresh"), { method: "POST", credentials: "include" })
       .then((r) => r.ok)
       .finally(() => {
         refreshInFlight = null;
@@ -25,7 +38,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
   const send = () =>
-    fetch(`/api/v1${path}`, {
+    fetch(apiUrl(path), {
       ...init,
       credentials: "include",
       headers,

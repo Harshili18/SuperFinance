@@ -38,7 +38,7 @@ export function Profitability({ embedded = false }: { embedded?: boolean }) {
           <button
             key={g}
             onClick={() => setGroup(g)}
-            className={`h-8 rounded-md border px-3 text-sm ${group === g ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}
+            className={`h-8 rounded-full px-3.5 text-xs font-semibold transition ${group === g ? "bg-primary text-primary-foreground shadow-xs" : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted"}`}
           >
             {g.replace("_", " ")}
           </button>

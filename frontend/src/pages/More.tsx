@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api } from "../lib/api";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Download,
+  Wallet,
+} from "lucide-react";
+import { api, apiUrl } from "../lib/api";
 import { toQuery, useFilters } from "../lib/filters";
 import { inr, pct } from "../lib/format";
 import { DataTable } from "../components/DataTable";
@@ -85,8 +92,8 @@ export function Expenses() {
         subtitle="Bills, camp claims and monthly reimbursements — one list."
         actions={
           <>
-            <button className="h-9 rounded-md border border-border px-3 text-sm" onClick={() => setOpen("monthly")}>Monthly claim</button>
-            <button className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground" onClick={() => setOpen("bill")}>Add bill</button>
+            <button className="btn-secondary" onClick={() => setOpen("monthly")}>Monthly claim</button>
+            <button className="btn-primary" onClick={() => setOpen("bill")}>Add bill</button>
           </>
         }
       />
@@ -180,14 +187,14 @@ export function Invoices() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
   });
   return (
-    <div>
+    <div className="space-y-3">
       <PageHeader
         title="Invoices"
         subtitle="Sending an invoice posts revenue and accounts receivable."
         actions={
           <div className="flex gap-2">
-            <button className="h-9 rounded-md border border-sf-border px-3 text-sm" onClick={() => downloadExport("invoices")}>Export CSV</button>
-            <button className="h-9 rounded-md bg-sf-primary px-3 text-sm text-white" onClick={() => setOpen((v) => !v)}>New invoice</button>
+            <button className="btn-secondary" onClick={() => downloadExport("invoices")}>Export CSV</button>
+            <button className="btn-primary" onClick={() => setOpen((v) => !v)}>New invoice</button>
           </div>
         }
       />
@@ -209,9 +216,9 @@ export function Invoices() {
             render: (r) => (
               <span className="flex gap-2">
                 {r.status === "draft" ? (
-                  <button className="text-sf-primary" onClick={() => send.mutate(String(r.id))}>Send</button>
+                  <button className="text-primary font-semibold hover:underline" onClick={() => send.mutate(String(r.id))}>Send</button>
                 ) : null}
-                <a className="text-sf-primary" href={`/api/v1/invoices/${r.id}/pdf`} target="_blank" rel="noreferrer">PDF</a>
+                <a className="text-primary font-semibold hover:underline" href={apiUrl(`/invoices/${r.id}/pdf`)} target="_blank" rel="noreferrer">PDF</a>
               </span>
             ),
           },
@@ -229,7 +236,7 @@ export function Payments() {
     <div>
       <PageHeader
         title="Payments & receivables"
-        actions={<button className="h-9 rounded-md bg-sf-primary px-3 text-sm text-white" onClick={() => setOpen((v) => !v)}>Record payment</button>}
+        actions={<button className="btn-primary" onClick={() => setOpen((v) => !v)}>Record payment</button>}
       />
       {open ? <PaymentForm onDone={() => setOpen(false)} /> : null}
       {ar ? (
@@ -260,11 +267,11 @@ export function Revenue() {
   const [open, setOpen] = useState(false);
   const { data } = useQuery({ queryKey: ["revenue"], queryFn: () => api<{ items: Record<string, unknown>[] }>("/revenue") });
   return (
-    <div>
+    <div className="space-y-3">
       <PageHeader
         title="Revenue"
         subtitle="Every row is a posted revenue transaction."
-        actions={<button className="h-9 rounded-md bg-sf-primary px-3 text-sm text-white" onClick={() => setOpen((v) => !v)}>Record revenue</button>}
+        actions={<button className="btn-primary" onClick={() => setOpen((v) => !v)}>Record revenue</button>}
       />
       {open ? <RevenueForm onDone={() => setOpen(false)} /> : null}
       <DataTable
@@ -290,7 +297,7 @@ export function Partners() {
       <PageHeader
         title="Diagnostic partners"
         subtitle="Margin = revenue generated on that partner’s tests − payout."
-        actions={<button className="h-9 rounded-md bg-sf-primary px-3 text-sm text-white" onClick={() => setOpen((v) => !v)}>Add partner</button>}
+        actions={<button className="btn-primary" onClick={() => setOpen((v) => !v)}>Add partner</button>}
       />
       {open ? <PartnerForm onDone={() => setOpen(false)} /> : null}
       <DataTable
@@ -320,7 +327,7 @@ export function Clinicians() {
       <PageHeader
         title="Doctors & Nutritionists"
         subtitle="People we pay for camps and consults — not on payroll."
-        actions={<button className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground" onClick={() => setOpen("add")}>Add {kind === "doctor" ? "doctor" : "nutritionist"}</button>}
+        actions={<button className="btn-primary" onClick={() => setOpen("add")}>Add {kind === "doctor" ? "doctor" : "nutritionist"}</button>}
       />
       <div className="my-4">
         <Chips
@@ -378,7 +385,7 @@ export function Employees() {
       <PageHeader
         title="Employees"
         subtitle="Payroll and reimbursements. Camp claims live on the camp too."
-        actions={<button className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground" onClick={() => setOpen((v) => !v)}>Monthly claim</button>}
+        actions={<button className="btn-primary" onClick={() => setOpen((v) => !v)}>Monthly claim</button>}
       />
       {open ? <MonthlyClaimForm onDone={() => setOpen(false)} /> : null}
       <PayrollBar />
@@ -495,52 +502,187 @@ export function Budgets() {
 
 export function Reports() {
   const { filters } = useFilters();
-  const { data: pnl } = useQuery({ queryKey: ["pnl", filters], queryFn: () => api<Record<string, unknown>>(`/reports/pnl${toQuery(filters)}`) });
-  const { data: cf } = useQuery({ queryKey: ["cf", filters], queryFn: () => api<Record<string, number>>(`/reports/cashflow${toQuery(filters)}`) });
+  const { data: pnl } = useQuery({
+    queryKey: ["pnl", filters],
+    queryFn: () => api<Record<string, unknown>>(`/reports/pnl${toQuery(filters)}`),
+  });
+  const { data: cf } = useQuery({
+    queryKey: ["cf", filters],
+    queryFn: () => api<Record<string, number>>(`/reports/cashflow${toQuery(filters)}`),
+  });
+
+  const revenue = Number(pnl?.total_revenue || 0);
+  const cogs = Number(pnl?.total_cogs || 0);
+  const grossProfit = Number(pnl?.gross_profit || 0);
+  const grossMargin = Number(pnl?.gross_margin || 0);
+  const opex = Number(pnl?.total_opex || 0);
+  const ebitda = Number(pnl?.ebitda || 0);
+  const netProfit = Number(pnl?.net_profit || 0);
+  const bottomNegative = ebitda < 0 || netProfit < 0;
+
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title="Overall P&L"
         subtitle="Profit and loss and cash flow from posted journal activity."
-        actions={<button className="h-9 rounded-md border border-sf-border px-3 text-sm" onClick={() => downloadExport("pnl")}>Export P&L</button>}
+        actions={
+          <button type="button" className="btn-secondary" onClick={() => downloadExport("pnl")}>
+            <Download className="size-3.5" />
+            Export P&L
+          </button>
+        }
       />
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-sf-border bg-sf-card p-4 text-sm">
-          <div className="font-medium">Profit & loss</div>
+        {/* Profit & Loss */}
+        <section className="surface-card flex flex-col p-5 md:p-6">
+          <div className="mb-5 flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <BarChart3 className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">Profit &amp; Loss</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">Business performance for the period</p>
+            </div>
+          </div>
+
           {pnl ? (
-            <dl className="mt-3 space-y-1">
-              <Row k="Total revenue" v={Number(pnl.total_revenue)} />
-              <Row k="Direct costs" v={Number(pnl.total_cogs)} />
-              <Row k="Gross profit" v={Number(pnl.gross_profit)} />
-              <div className="text-sf-muted">Gross margin {pct(Number(pnl.gross_margin))}</div>
-              <Row k="Operating expenses" v={Number(pnl.total_opex)} />
-              <Row k="EBITDA" v={Number(pnl.ebitda)} />
-              <Row k="Net profit" v={Number(pnl.net_profit)} />
-            </dl>
-          ) : null}
-        </div>
-        <div className="rounded-lg border border-sf-border bg-sf-card p-4 text-sm">
-          <div className="font-medium">Cash flow</div>
+            <div className="flex flex-1 flex-col">
+              <div className="mb-4">
+                <p className="text-xs font-medium text-muted-foreground">Total revenue</p>
+                <p className="num mt-1 text-2xl font-bold tracking-tight md:text-[1.75rem]">{inr(revenue, false)}</p>
+              </div>
+
+              <div className="space-y-0 border-t border-border/70">
+                <PnLLine label="Direct costs" value={cogs} />
+                <PnLLine label="Gross profit" value={grossProfit} emphasize />
+              </div>
+
+              <div className="my-3 flex items-center justify-between gap-3 rounded-full bg-positive/10 px-3.5 py-2">
+                <span className="flex items-center gap-2 text-xs font-medium text-positive">
+                  <span className="size-1.5 rounded-full bg-positive" />
+                  Gross margin
+                </span>
+                <span className="num text-sm font-semibold text-positive">{pct(grossMargin)}</span>
+              </div>
+
+              <div className="border-t border-border/70">
+                <PnLLine label="Operating expenses" value={opex} />
+              </div>
+
+              <div
+                className={`mt-auto grid grid-cols-2 gap-0 overflow-hidden rounded-2xl ${
+                  bottomNegative ? "bg-negative/10" : "bg-positive/10"
+                }`}
+              >
+                <div className="flex items-start gap-2.5 border-r border-border/40 px-4 py-3.5">
+                  <span
+                    className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${
+                      ebitda < 0 ? "bg-negative/15 text-negative" : "bg-positive/15 text-positive"
+                    }`}
+                  >
+                    {ebitda < 0 ? <ArrowDownRight className="size-3.5" /> : <ArrowUpRight className="size-3.5" />}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">EBITDA</p>
+                    <p className={`num mt-0.5 truncate text-sm font-bold ${ebitda < 0 ? "text-negative" : "text-positive"}`}>
+                      {inr(ebitda, false)}
+                    </p>
+                  </div>
+                </div>
+                <div className="px-4 py-3.5">
+                  <p className="text-xs text-muted-foreground">Net profit</p>
+                  <p className={`num mt-0.5 truncate text-sm font-bold ${netProfit < 0 ? "text-negative" : "text-positive"}`}>
+                    {inr(netProfit, false)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading P&amp;L…</p>
+          )}
+        </section>
+
+        {/* Cash flow */}
+        <section className="surface-card flex flex-col p-5 md:p-6">
+          <div className="mb-5 flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Wallet className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">Cash flow</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">Cash movement for the period</p>
+            </div>
+          </div>
+
           {cf ? (
-            <dl className="mt-3 space-y-1">
-              <Row k="Opening cash" v={cf.opening_cash} />
-              <Row k="Inflows" v={cf.cash_inflows} />
-              <Row k="Outflows" v={cf.cash_outflows} />
-              <Row k="Operating CF" v={cf.operating_cash_flow} />
-              <Row k="Closing cash" v={cf.closing_cash} />
-            </dl>
-          ) : null}
-        </div>
+            <div className="flex flex-1 flex-col">
+              <PnLLine label="Opening cash" value={cf.opening_cash} border={false} />
+
+              <div className="my-3 grid grid-cols-2 gap-2.5">
+                <div className="rounded-2xl bg-positive/10 px-3.5 py-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-positive">
+                    <ArrowUpRight className="size-3.5" />
+                    Cash inflows
+                  </div>
+                  <p className="num mt-1.5 text-base font-bold text-positive">+{inr(Math.abs(cf.cash_inflows), false)}</p>
+                </div>
+                <div className="rounded-2xl bg-negative/10 px-3.5 py-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-negative">
+                    <ArrowDownRight className="size-3.5" />
+                    Cash outflows
+                  </div>
+                  <p className="num mt-1.5 text-base font-bold text-negative">-{inr(Math.abs(cf.cash_outflows), false)}</p>
+                </div>
+              </div>
+
+              <div className="border-t border-border/70">
+                <PnLLine label="Operating CF" value={cf.operating_cash_flow} tone />
+              </div>
+
+              <div className="mt-auto flex items-center justify-between gap-3 rounded-2xl bg-positive/10 px-4 py-3.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-positive/15 text-positive">
+                    <Wallet className="size-4" />
+                  </span>
+                  <span className="text-sm font-medium text-foreground">Closing cash</span>
+                </div>
+                <span className="num text-base font-bold tracking-tight">{inr(cf.closing_cash, false)}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading cash flow…</p>
+          )}
+        </section>
       </div>
     </div>
   );
 }
 
-function Row({ k, v }: { k: string; v: number }) {
+function PnLLine({
+  label,
+  value,
+  emphasize,
+  tone,
+  border = true,
+}: {
+  label: string;
+  value: number;
+  emphasize?: boolean;
+  tone?: boolean;
+  border?: boolean;
+}) {
+  const negative = value < 0;
   return (
-    <div className="flex justify-between border-b border-sf-border/60 py-1">
-      <dt>{k}</dt>
-      <dd className="num">{inr(v, false)}</dd>
+    <div className={`flex items-center justify-between gap-3 py-2.5 ${border ? "border-b border-border/70 last:border-0" : ""}`}>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd
+        className={`num text-sm tracking-tight ${
+          emphasize ? "font-semibold text-foreground" : tone && negative ? "font-semibold text-negative" : tone && !negative ? "font-semibold text-positive" : "font-semibold text-foreground"
+        }`}
+      >
+        {inr(value, false)}
+      </dd>
     </div>
   );
 }
@@ -553,9 +695,9 @@ function PayrollBar() {
     onSuccess: () => qc.invalidateQueries(),
   });
   return (
-    <div className="mb-4 flex items-center justify-between rounded-lg border border-sf-border bg-sf-card px-4 py-3 text-sm">
+    <div className="surface-card mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 text-sm">
       <span>Post this month’s salary tracking entry (not statutory payroll).</span>
-      <button className="h-9 rounded-md border border-sf-border px-3" onClick={() => post.mutate()} disabled={post.isPending}>
+      <button className="btn-secondary" onClick={() => post.mutate()} disabled={post.isPending}>
         {post.isPending ? "Posting…" : "Post payroll"}
       </button>
       {post.isError ? <span className="text-sf-accent">{(post.error as Error).message}</span> : null}
@@ -566,20 +708,25 @@ function PayrollBar() {
 export function Documents() {
   const { data } = useQuery({ queryKey: ["docs"], queryFn: () => api<{ items: Record<string, unknown>[] }>("/documents") });
   return (
-    <div>
+    <div className="space-y-3">
       <PageHeader title="Documents" subtitle="Files are stored on disk, not as database blobs." />
-      <div className="mb-4">
-        <UploadBox entityType="organization" entityId="general" />
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,320px)_1fr]">
+        <div className="surface-card p-3.5 md:p-4">
+          <h2 className="mb-2 text-sm font-semibold tracking-tight">Upload</h2>
+          <UploadBox entityType="organization" entityId="general" />
+        </div>
+        <div className="min-w-0">
+          <DataTable
+            rows={data?.items || []}
+            empty="Upload receipts, contracts, and partner bills from a record page."
+            columns={[
+              { key: "filename", label: "File", render: (r) => <a className="text-primary font-semibold hover:underline" href={apiUrl(`/documents/${r.id}/download`)}>{String(r.filename)}</a> },
+              { key: "entity_type", label: "Linked to" },
+              { key: "size", label: "Size", align: "right" },
+            ]}
+          />
+        </div>
       </div>
-      <DataTable
-        rows={data?.items || []}
-        empty="Upload receipts, contracts, and partner bills from a record page."
-        columns={[
-          { key: "filename", label: "File", render: (r) => <a className="text-sf-primary" href={`/api/v1/documents/${r.id}/download`}>{String(r.filename)}</a> },
-          { key: "entity_type", label: "Linked to" },
-          { key: "size", label: "Size", align: "right" },
-        ]}
-      />
     </div>
   );
 }
@@ -596,31 +743,35 @@ export function SettingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["periods"] }),
   });
   return (
-    <div>
+    <div className="space-y-3">
       <PageHeader title="Settings" subtitle="Organization, periods, and security." />
-      <div className="rounded-lg border border-sf-border bg-sf-card p-4 text-sm">
-        <p>SUPERSSHYFT · INR · Development OTP 424242</p>
-        <p className="mt-2 text-sf-muted">Production: set ENVIRONMENT=production, a strong SECRET_KEY, PostgreSQL DATABASE_URL, COOKIE_SECURE=true, and a real SMS provider. Period locking and RBAC are enforced on the API.</p>
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,360px)_1fr]">
+        <div className="surface-card p-3.5 md:p-4 text-sm">
+          <p className="font-medium">SUPERSSHYFT · INR · Development OTP 424242</p>
+          <p className="mt-2 text-muted-foreground">Production: set ENVIRONMENT=production, a strong SECRET_KEY, PostgreSQL DATABASE_URL, COOKIE_SECURE=true, and a real SMS provider. Period locking and RBAC are enforced on the API.</p>
+        </div>
+        <div className="min-w-0">
+          <h2 className="mb-2 text-sm font-medium">Accounting periods</h2>
+          <DataTable
+            rows={(data?.items || []).slice(0, 18).map((p) => ({ ...p, id: `${p.year}-${p.month}` }))}
+            empty="No periods yet."
+            columns={[
+              { key: "year", label: "Year" },
+              { key: "month", label: "Month" },
+              { key: "status", label: "Status" },
+              {
+                key: "id",
+                label: "",
+                render: (r) => (
+                  <button className="text-primary font-semibold hover:underline" onClick={() => lock.mutate({ year: Number(r.year), month: Number(r.month), status: String(r.status) })}>
+                    {r.status === "locked" ? "Reopen" : "Lock"}
+                  </button>
+                ),
+              },
+            ]}
+          />
+        </div>
       </div>
-      <h2 className="mb-3 mt-8 text-sm font-medium">Accounting periods</h2>
-      <DataTable
-        rows={(data?.items || []).slice(0, 18).map((p) => ({ ...p, id: `${p.year}-${p.month}` }))}
-        empty="No periods yet."
-        columns={[
-          { key: "year", label: "Year" },
-          { key: "month", label: "Month" },
-          { key: "status", label: "Status" },
-          {
-            key: "id",
-            label: "",
-            render: (r) => (
-              <button className="text-sf-primary" onClick={() => lock.mutate({ year: Number(r.year), month: Number(r.month), status: String(r.status) })}>
-                {r.status === "locked" ? "Reopen" : "Lock"}
-              </button>
-            ),
-          },
-        ]}
-      />
     </div>
   );
 }

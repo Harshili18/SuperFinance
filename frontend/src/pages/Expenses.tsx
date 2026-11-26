@@ -146,78 +146,82 @@ export function Expenses() {
         subtitle="Fixed costs, salary, reimbursements and AI subscriptions — add anything else by hand."
         actions={
           <>
-            <button className="h-9 rounded-md border border-border px-3 text-sm" onClick={() => setOpen("monthly")}>Reimbursement</button>
-            <button className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground" onClick={() => setOpen("bill")}>Add expense</button>
+            <button className="btn-secondary" onClick={() => setOpen("monthly")}>Reimbursement</button>
+            <button className="btn-primary" onClick={() => setOpen("bill")}>Add expense</button>
           </>
         }
       />
-      {open === "bill" ? <div className="mt-4"><ExpenseForm onDone={() => setOpen("none")} /></div> : null}
-      {open === "monthly" ? <div className="mt-4"><MonthlyClaimForm onDone={() => setOpen("none")} /></div> : null}
+      {open === "bill" ? <div className="mt-3"><ExpenseForm onDone={() => setOpen("none")} /></div> : null}
+      {open === "monthly" ? <div className="mt-3"><MonthlyClaimForm onDone={() => setOpen("none")} /></div> : null}
 
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total" kpi={{ value: br?.total || 0 }} />
-        <KpiCard label="Fixed" kpi={{ value: br?.buckets.fixed || 0 }} sub="Rent, office, insurance" />
-        <KpiCard label="Salary" kpi={{ value: br?.buckets.salary || 0 }} />
-        <KpiCard label="Reimbursements" kpi={{ value: br?.buckets.reimbursement || 0 }} />
-        <KpiCard label="AI / software" kpi={{ value: br?.buckets.subscription || 0 }} sub="Cursor, Claude, Figma" />
-        <KpiCard label="Camp costs" kpi={{ value: br?.buckets.camp || 0 }} />
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <Chips value={bucket} onChange={setBucket} options={BUCKETS} />
-        <Chips value={grain} onChange={setGrain} options={PERIODS} />
-      </div>
-
-      <div className="mt-4">
-        <Panel title={`Spend by ${grain}`}>
-          <MoneyBars data={chart} />
-        </Panel>
-      </div>
-
-      {bucket === "all" || bucket === "salary" ? (
-        <section className="mt-6 rounded-lg border border-border bg-card p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Salary by employee</h2>
-              <p className="text-xs text-muted-foreground">Posted payroll for the selected period</p>
-            </div>
-            <button className="h-8 rounded-md border border-border px-3 text-xs font-semibold" onClick={() => postPayroll.mutate()} disabled={postPayroll.isPending}>
-              {postPayroll.isPending ? "Posting…" : "Post this month"}
-            </button>
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1.1fr_1fr]">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <KpiCard label="Total" kpi={{ value: br?.total || 0 }} />
+          <KpiCard label="Fixed" kpi={{ value: br?.buckets.fixed || 0 }} sub="Rent, office, insurance" />
+          <KpiCard label="Salary" kpi={{ value: br?.buckets.salary || 0 }} />
+          <KpiCard label="Reimbursements" kpi={{ value: br?.buckets.reimbursement || 0 }} />
+          <KpiCard label="AI / software" kpi={{ value: br?.buckets.subscription || 0 }} sub="Cursor, Claude, Figma" />
+          <KpiCard label="Camp costs" kpi={{ value: br?.buckets.camp || 0 }} />
+        </div>
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <Chips value={bucket} onChange={setBucket} options={BUCKETS} />
+            <Chips value={grain} onChange={setGrain} options={PERIODS} />
           </div>
-          {postPayroll.isError ? <p className="mb-2 text-sm text-negative">{(postPayroll.error as Error).message}</p> : null}
-          <DataTable
-            rows={(br?.salary_by_employee.length ? br.salary_by_employee : (emps?.items || []).map((e) => ({ ...e, employee: e.name, amount: e.monthly_salary }))) as unknown as Record<string, unknown>[]}
-            empty="No salary posted."
-            columns={[
-              { key: "employee", label: "Employee", render: (r) => String(r.employee || r.name || "") },
-              { key: "amount", label: "Salary", align: "right", render: (r) => inr(Number(r.amount || r.monthly_salary), false) },
-            ]}
-          />
-        </section>
-      ) : null}
+          <Panel title={`Spend by ${grain}`}>
+            <MoneyBars data={chart} height="sm" />
+          </Panel>
+        </div>
+      </div>
 
-      {bucket === "all" || bucket === "reimbursement" ? (
-        <section className="mt-6 rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-1 text-sm font-semibold">Reimbursements by employee</h2>
-          <p className="mb-3 text-xs text-muted-foreground">Monthly claims vs camp claims</p>
-          <DataTable
-            rows={(br?.reimbursements_by_employee || []) as unknown as Record<string, unknown>[]}
-            empty="No reimbursements in this period."
-            columns={[
-              { key: "employee", label: "Employee" },
-              { key: "monthly", label: "Monthly", align: "right", render: (r) => inr(Number(r.monthly), false) },
-              { key: "camp", label: "Camp", align: "right", render: (r) => inr(Number(r.camp), false) },
-              { key: "total", label: "Total", align: "right", render: (r) => inr(Number(r.total), false) },
-            ]}
-          />
-        </section>
+      {(bucket === "all" || bucket === "salary" || bucket === "reimbursement") ? (
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          {bucket === "all" || bucket === "salary" ? (
+            <section className="surface-card p-3.5 md:p-4">
+              <div className="mb-2.5 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold tracking-tight">Salary by employee</h2>
+                  <p className="text-xs text-muted-foreground">Posted payroll for the selected period</p>
+                </div>
+                <button className="btn-secondary h-8 text-xs" onClick={() => postPayroll.mutate()} disabled={postPayroll.isPending}>
+                  {postPayroll.isPending ? "Posting…" : "Post this month"}
+                </button>
+              </div>
+              {postPayroll.isError ? <p className="mb-2 text-sm text-negative">{(postPayroll.error as Error).message}</p> : null}
+              <DataTable
+                rows={(br?.salary_by_employee.length ? br.salary_by_employee : (emps?.items || []).map((e) => ({ ...e, employee: e.name, amount: e.monthly_salary }))) as unknown as Record<string, unknown>[]}
+                empty="No salary posted."
+                columns={[
+                  { key: "employee", label: "Employee", render: (r) => String(r.employee || r.name || "") },
+                  { key: "amount", label: "Salary", align: "right", render: (r) => inr(Number(r.amount || r.monthly_salary), false) },
+                ]}
+              />
+            </section>
+          ) : null}
+
+          {bucket === "all" || bucket === "reimbursement" ? (
+            <section className="surface-card p-3.5 md:p-4">
+              <h2 className="mb-0.5 text-sm font-semibold tracking-tight">Reimbursements by employee</h2>
+              <p className="mb-2.5 text-xs text-muted-foreground">Monthly claims vs camp claims</p>
+              <DataTable
+                rows={(br?.reimbursements_by_employee || []) as unknown as Record<string, unknown>[]}
+                empty="No reimbursements in this period."
+                columns={[
+                  { key: "employee", label: "Employee" },
+                  { key: "monthly", label: "Monthly", align: "right", render: (r) => inr(Number(r.monthly), false) },
+                  { key: "camp", label: "Camp", align: "right", render: (r) => inr(Number(r.camp), false) },
+                  { key: "total", label: "Total", align: "right", render: (r) => inr(Number(r.total), false) },
+                ]}
+              />
+            </section>
+          ) : null}
+        </div>
       ) : null}
 
       {bucket === "all" || bucket === "subscription" ? (
-        <section className="mt-6 rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-1 text-sm font-semibold">AI & software subscriptions</h2>
-          <p className="mb-3 text-xs text-muted-foreground">Cursor, Claude, Figma — add any other tool as an expense</p>
+        <section className="surface-card mt-3 p-3.5 md:p-4">
+          <h2 className="mb-0.5 text-sm font-semibold tracking-tight">AI & software subscriptions</h2>
+          <p className="mb-2.5 text-xs text-muted-foreground">Cursor, Claude, Figma — add any other tool as an expense</p>
           <DataTable
             rows={(br?.subscriptions || []) as unknown as Record<string, unknown>[]}
             empty="No subscriptions yet. Add Cursor, Claude or Figma from Add expense."
@@ -232,8 +236,8 @@ export function Expenses() {
         </section>
       ) : null}
 
-      <section className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold">All entries</h2>
+      <section className="mt-3">
+        <h2 className="mb-2 text-sm font-semibold">All entries</h2>
         <DataTable
           rows={rows as unknown as Record<string, unknown>[]}
           empty="Nothing in this filter yet."

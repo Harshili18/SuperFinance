@@ -30,9 +30,15 @@ def _rate_limit(phone: str) -> None:
 def _set_cookies(response: Response, user_id: str) -> None:
     access = create_token(user_id, "access", minutes=settings.access_token_minutes)
     refresh = create_token(user_id, "refresh", days=settings.refresh_token_days)
-    kw = dict(httponly=True, samesite="lax", secure=settings.cookie_secure, path="/")
+    kw = settings.cookie_kwargs
     response.set_cookie("sf_access", access, max_age=settings.access_token_minutes * 60, **kw)
     response.set_cookie("sf_refresh", refresh, max_age=settings.refresh_token_days * 86400, **kw)
+
+
+def _clear_cookies(response: Response) -> None:
+    kw = settings.cookie_kwargs
+    response.delete_cookie("sf_access", path=kw["path"], samesite=kw["samesite"], secure=kw["secure"])
+    response.delete_cookie("sf_refresh", path=kw["path"], samesite=kw["samesite"], secure=kw["secure"])
 
 
 @router.post("/otp/request")
@@ -132,8 +138,7 @@ def refresh(response: Response, db: Session = Depends(get_db), sf_refresh: str |
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("sf_access", path="/")
-    response.delete_cookie("sf_refresh", path="/")
+    _clear_cookies(response)
     return {"ok": True}
 
 

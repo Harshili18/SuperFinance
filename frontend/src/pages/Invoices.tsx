@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api } from "../lib/api";
+import { api, apiUrl } from "../lib/api";
 import { toQuery, useFilters } from "../lib/filters";
 import { inr } from "../lib/format";
 import { DataTable } from "../components/DataTable";
@@ -86,7 +86,7 @@ export function Invoices() {
               render: (r) => (
                 <span className="flex gap-2">
                   {r.status === "draft" ? <button className="text-xs font-semibold text-primary" onClick={() => send.mutate(String(r.id))}>Send</button> : null}
-                  <a className="text-xs font-semibold text-primary" href={`/api/v1/invoices/${r.id}/pdf`} target="_blank" rel="noreferrer">PDF</a>
+                  <a className="text-xs font-semibold text-primary" href={apiUrl(`/invoices/${r.id}/pdf`)} target="_blank" rel="noreferrer">PDF</a>
                 </span>
               ),
             },

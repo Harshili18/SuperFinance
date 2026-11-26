@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     storage_dir: str = "./storage"
     max_upload_mb: int = 20
     cookie_secure: bool = False
+    # lax = same-site / reverse-proxy; none = cross-site FE↔API (requires Secure)
+    cookie_samesite: str = "lax"
 
     @property
     def is_dev(self) -> bool:
@@ -38,6 +40,16 @@ class Settings(BaseSettings):
         p = Path(self.storage_dir)
         p.mkdir(parents=True, exist_ok=True)
         return p
+
+    @property
+    def cookie_kwargs(self) -> dict:
+        samesite = (self.cookie_samesite or "lax").lower()
+        if samesite not in {"lax", "strict", "none"}:
+            samesite = "lax"
+        secure = bool(self.cookie_secure) or samesite == "none"
+        if not self.is_dev and samesite == "none" and not secure:
+            raise RuntimeError("COOKIE_SAMESITE=none requires COOKIE_SECURE=true in production.")
+        return {"httponly": True, "samesite": samesite, "secure": secure, "path": "/"}
 
 
 settings = Settings()

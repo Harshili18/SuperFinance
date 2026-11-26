@@ -31,7 +31,8 @@ export function FilterBar() {
   }
 
   const extra = [filters.city_id, filters.business_model, filters.channel, filters.client_id, filters.package_id].filter(Boolean).length;
-  const sel = "h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs";
+  const sel =
+    "h-9 w-full rounded-xl border border-input bg-card px-2.5 text-xs outline-none transition focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15";
 
   useEffect(() => {
     function close(e: MouseEvent) {
@@ -43,7 +44,11 @@ export function FilterBar() {
 
   return (
     <div ref={ref} className="relative flex shrink-0 items-center gap-2">
-      <select className="h-8 max-w-[132px] rounded-md border border-input bg-transparent px-2 text-xs" value={filters.period} onChange={(e) => set("period", e.target.value)}>
+      <select
+        className="h-9 max-w-[148px] rounded-xl border border-input bg-card px-2.5 text-xs font-medium outline-none transition focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15"
+        value={filters.period}
+        onChange={(e) => set("period", e.target.value)}
+      >
         {periods.map(([v, l]) => (
           <option key={v} value={v}>{l}</option>
         ))}
@@ -51,13 +56,18 @@ export function FilterBar() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-8 items-center gap-1 rounded-md border border-input px-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+        className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium transition ${
+          open || extra
+            ? "border-primary/30 bg-primary/10 text-primary"
+            : "border-input bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+        }`}
       >
         <SlidersHorizontal size={13} />
         Filters{extra ? ` · ${extra}` : ""}
       </button>
       {open ? (
-        <div className="absolute right-0 top-10 z-40 w-64 space-y-2 rounded-lg border border-border bg-card p-3 shadow-lg">
+        <div className="absolute right-0 top-11 z-40 w-72 space-y-2.5 rounded-2xl border border-border bg-card p-3.5 shadow-soft">
+          <p className="px-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Refine view</p>
           <select className={sel} value={filters.city_id || ""} onChange={(e) => set("city_id", e.target.value)}>
             <option value="">All cities</option>
             {data?.cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -83,7 +93,7 @@ export function FilterBar() {
             {data?.packages.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           {extra ? (
-            <button type="button" className="text-xs text-muted-foreground" onClick={() => setFilters({ period: filters.period })}>
+            <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setFilters({ period: filters.period })}>
               Clear extra filters
             </button>
           ) : null}

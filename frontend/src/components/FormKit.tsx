@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
-import { api } from "../lib/api";
+import { api, apiUrl } from "../lib/api";
 
 export type Lookups = {
   cities: { id: string; name: string }[];
@@ -20,14 +20,14 @@ export function useLookups() {
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block text-sm">
-      <span className="text-sf-muted">{label}</span>
-      <div className="mt-1">{children}</div>
+      <span className="text-[12px] font-medium text-muted-foreground">{label}</span>
+      <div className="mt-1.5">{children}</div>
     </label>
   );
 }
 
 export const inputClass =
-  "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  "h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15";
 
 export function PanelForm({
   title,
@@ -45,15 +45,15 @@ export function PanelForm({
   submit?: string;
 }) {
   return (
-    <form onSubmit={onSubmit} className="mb-4 rounded-lg border border-sf-border bg-sf-card p-4">
-      <div className="mb-3 text-sm font-medium">{title}</div>
+    <form onSubmit={onSubmit} className="surface-card mb-3 p-3.5 md:p-4">
+      <div className="mb-4 text-sm font-semibold tracking-tight">{title}</div>
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">{children}</div>
-      <div className="mt-4 flex gap-2">
-        <button disabled={busy} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button disabled={busy} className="btn-primary">
           {busy ? "Saving…" : submit}
         </button>
         {onCancel ? (
-          <button type="button" className="h-9 px-3 text-sm text-sf-muted" onClick={onCancel}>
+          <button type="button" className="btn-ghost" onClick={onCancel}>
             Cancel
           </button>
         ) : null}
@@ -63,7 +63,7 @@ export function PanelForm({
 }
 
 export function downloadExport(module: string, fmt: "csv" | "xlsx" = "csv") {
-  window.open(`/api/v1/export/${module}?fmt=${fmt}`, "_blank");
+  window.open(apiUrl(`/export/${module}?fmt=${fmt}`), "_blank");
 }
 
 export function Pill({
@@ -76,12 +76,12 @@ export function Pill({
   const map = {
     camp: "bg-primary/10 text-primary",
     monthly: "bg-secondary text-secondary-foreground",
-    ok: "text-positive bg-muted",
-    warn: "text-negative bg-muted",
+    ok: "bg-positive/10 text-positive",
+    warn: "bg-warning/10 text-warning",
     muted: "bg-muted text-muted-foreground",
   };
   return (
-    <span className={`inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold leading-4 ${map[tone]}`}>
+    <span className={`inline-flex max-w-full items-center gap-1 truncate rounded-full px-2.5 py-0.5 text-[11px] font-semibold leading-4 ${map[tone]}`}>
       {children}
     </span>
   );
@@ -103,8 +103,10 @@ export function Chips({
           key={o.id}
           type="button"
           onClick={() => onChange(o.id)}
-          className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold ${
-            value === o.id ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:bg-muted"
+          className={`h-8 shrink-0 rounded-full px-3.5 text-xs font-semibold transition ${
+            value === o.id
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "bg-card text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
           }`}
         >
           {o.label}
@@ -126,10 +128,10 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="mt-6 min-w-0 rounded-lg border border-border bg-card p-4 shadow-xs">
+    <section className="surface-card min-w-0 p-3.5 md:p-4">
       <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold">{title}</h2>
+          <h2 className="truncate text-sm font-semibold tracking-tight">{title}</h2>
           {hint ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p> : null}
         </div>
         {actions ? <div className="shrink-0">{actions}</div> : null}
