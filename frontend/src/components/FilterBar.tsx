@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SlidersHorizontal } from "lucide-react";
 import { api } from "../lib/api";
@@ -20,6 +20,10 @@ const periods = [
   ["today", "Today"],
 ];
 
+function periodLabel(period: string): string {
+  return periods.find(([v]) => v === period)?.[1] || period;
+}
+
 export function FilterBar() {
   const { filters, setFilters } = useFilters();
   const { data } = useQuery({ queryKey: ["lookups"], queryFn: () => api<Lookups>("/lookups") });
@@ -31,6 +35,13 @@ export function FilterBar() {
   }
 
   const extra = [filters.city_id, filters.business_model, filters.channel, filters.client_id, filters.package_id].filter(Boolean).length;
+  const activeLabel = useMemo(() => {
+    if (filters.date_from || filters.date_to) {
+      return `${filters.date_from || "…"} → ${filters.date_to || "…"}`;
+    }
+    return periodLabel(filters.period);
+  }, [filters.date_from, filters.date_to, filters.period]);
+
   const sel =
     "h-9 w-full rounded-xl border border-input bg-card px-2.5 text-xs outline-none transition focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15";
 
@@ -44,10 +55,14 @@ export function FilterBar() {
 
   return (
     <div ref={ref} className="relative flex shrink-0 items-center gap-2">
+      <span className="hidden text-[11px] text-muted-foreground sm:inline" title="Active reporting period">
+        Period: <span className="font-medium text-foreground">{activeLabel}</span>
+      </span>
       <select
         className="h-9 max-w-[148px] rounded-xl border border-input bg-card px-2.5 text-xs font-medium outline-none transition focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15"
         value={filters.period}
         onChange={(e) => set("period", e.target.value)}
+        title="Global date period applied across modules"
       >
         {periods.map(([v, l]) => (
           <option key={v} value={v}>{l}</option>
@@ -79,10 +94,12 @@ export function FilterBar() {
           </select>
           <select className={sel} value={filters.channel || ""} onChange={(e) => set("channel", e.target.value)}>
             <option value="">All channels</option>
-            <option value="camp">Camp</option>
-            <option value="app">App</option>
+            <option value="camp">B2B Camp</option>
+            <option value="app">B2C / App</option>
             <option value="b2b">B2B</option>
+            <option value="online_pt">Online Personal Training</option>
             <option value="consultation">Consultation</option>
+            <option value="other">Other</option>
           </select>
           <select className={sel} value={filters.client_id || ""} onChange={(e) => set("client_id", e.target.value)}>
             <option value="">All clients</option>
@@ -92,11 +109,13 @@ export function FilterBar() {
             <option value="">All packages</option>
             {data?.packages.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          {extra ? (
-            <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setFilters({ period: filters.period })}>
-              Clear extra filters
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+            onClick={() => setFilters({ period: "year" })}
+          >
+            Reset all filters
+          </button>
         </div>
       ) : null}
     </div>

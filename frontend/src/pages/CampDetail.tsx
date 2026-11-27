@@ -118,8 +118,19 @@ export function CampDetail() {
         <KpiCard label="Direct cost" kpi={{ value: data.direct_cost }} />
         <KpiCard label="Allocated" kpi={{ value: data.allocated_cost }} sub="Not double-counted in company OpEx" />
         <KpiCard label="Profit" kpi={{ value: data.net_profit }} />
-        <KpiCard label="ROI" kpi={{ value: data.roi }} format="pct" />
+        <KpiCard label="ROI" kpi={{ value: data.roi }} format="pct" sub="Profit ÷ investment" />
       </div>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <KpiCard label="Invoice amount" kpi={{ value: Number((data as Detail & { invoice_amount?: number }).invoice_amount || 0) }} />
+        <KpiCard label="Collected" kpi={{ value: Number((data as Detail & { amount_collected?: number }).amount_collected || 0) }} />
+        <KpiCard label="Outstanding" kpi={{ value: Number((data as Detail & { outstanding_receivable?: number }).outstanding_receivable || 0) }} />
+        <KpiCard label="Expected revenue" kpi={{ value: Number((data as Detail & { expected_revenue?: number }).expected_revenue || 0) }} />
+      </div>
+      {(data as Detail & { flags?: string[] }).flags?.length ? (
+        <p className="text-xs text-warning">
+          Flags: {(data as Detail & { flags?: string[] }).flags!.map((f) => f.replace(/_/g, " ")).join(" · ")}
+        </p>
+      ) : null}
 
       <Chips
         value={tab}

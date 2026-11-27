@@ -110,17 +110,20 @@ function PositionTile({
   value,
   onClick,
   negative,
+  title,
 }: {
   label: string;
   value: string;
   onClick?: () => void;
   negative?: boolean;
+  title?: string;
 }) {
   const Tag = onClick ? "button" : "div";
   return (
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
+      title={title}
       className={`rounded-xl bg-surface-soft px-2.5 py-2 text-left transition ${onClick ? "hover:bg-muted" : ""}`}
     >
       <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
@@ -299,7 +302,11 @@ export function Overview() {
               value={inr(data.operating_expenses.value)}
               onClick={() => nav("/expenses")}
             />
-            <PositionTile label="Burn / month" value={inr(data.burn_rate.value)} />
+            <PositionTile
+              label="Burn / month"
+              value={inr(data.burn_rate.value)}
+              title="Average gross monthly cash outflow (credits to cash/bank), not net burn"
+            />
             <PositionTile
               label="Runway"
               value={`${Number(data.runway_months ?? 0)} mo`}

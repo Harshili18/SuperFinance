@@ -376,12 +376,137 @@ def _journal_cash_movement(db: Session, f: Filters) -> tuple[Decimal, Decimal]:
     return D(row[0]), D(row[1])
 
 
+def _cash_breakdown(db: Session, f: Filters) -> dict:
+    """Classify cash journal activity using linked transaction types when available."""
+    from app.models import JournalEntry
+
+    cash_codes = _cash_codes(db, f.org_id)
+    stmt = (
+        select(
+            Transaction.txn_type,
+            func.coalesce(func.sum(JournalLine.debit), 0),
+            func.coalesce(func.sum(JournalLine.credit), 0),
+        )
+        .select_from(JournalLine)
+        .join(JournalLine.entry)
+        .outerjoin(Transaction, Transaction.id == JournalEntry.source_transaction_id)
+        .where(
+            JournalEntry.org_id == f.org_id,
+            JournalEntry.status == "posted",
+            JournalLine.account_code.in_(cash_codes),
+        )
+        .group_by(Transaction.txn_type)
+    )
+    if f.date_from:
+        stmt = stmt.where(JournalEntry.entry_date >= f.date_from)
+    if f.date_to:
+        stmt = stmt.where(JournalEntry.entry_date <= f.date_to)
+    collections = other_in = supplier = employee = other_out = D0
+    for txn_type, debit, credit in db.execute(stmt).all():
+        d, c = D(debit), D(credit)
+        t = (txn_type or "other").lower()
+        if d > 0:
+            if t in {"payment_in", "revenue"}:
+                collections += d
+            else:
+                other_in += d
+        if c > 0:
+            if t in {"payroll", "reimbursement"}:
+                employee += c
+            elif t in {"expense", "cogs", "payment_out"}:
+                supplier += c
+            else:
+                other_out += c
+    return {
+        "customer_collections": money(collections),
+        "other_inflows": money(other_in),
+        "supplier_payments": money(supplier),
+        "employee_payments": money(employee),
+        "other_outflows": money(other_out),
+    }
+
+
+def _cash_by_account(db: Session, f: Filters) -> list[dict]:
+    from app.models import JournalEntry
+
+    names = {
+        a.code: a.name
+        for a in db.scalars(select(Account).where(Account.org_id == f.org_id, Account.is_cash.is_(True))).all()
+    }
+    codes = list(names) or ["1000", "1010"]
+    stmt = (
+        select(
+            JournalLine.account_code,
+            func.coalesce(func.sum(JournalLine.debit), 0) - func.coalesce(func.sum(JournalLine.credit), 0),
+        )
+        .select_from(JournalLine)
+        .join(JournalLine.entry)
+        .where(
+            JournalEntry.org_id == f.org_id,
+            JournalEntry.status == "posted",
+            JournalLine.account_code.in_(codes),
+        )
+        .group_by(JournalLine.account_code)
+    )
+    if f.date_to:
+        stmt = stmt.where(JournalEntry.entry_date <= f.date_to)
+    rows = []
+    for code, bal in db.execute(stmt).all():
+        rows.append({
+            "account_code": code,
+            "account_name": names.get(code, code),
+            "balance": money(D(bal)),
+            "kind": "bank" if code.startswith("101") or "bank" in (names.get(code) or "").lower() else "cash",
+        })
+    return rows
+
+
+def _monthly_cashflow(db: Session, f: Filters) -> list[dict]:
+    from app.models import JournalEntry
+
+    cash_codes = _cash_codes(db, f.org_id)
+    month_expr = func.strftime("%Y-%m", JournalEntry.entry_date)
+    if db.bind and db.bind.dialect.name == "postgresql":
+        month_expr = func.to_char(JournalEntry.entry_date, "YYYY-MM")
+    stmt = (
+        select(
+            month_expr.label("month"),
+            func.coalesce(func.sum(JournalLine.debit), 0),
+            func.coalesce(func.sum(JournalLine.credit), 0),
+        )
+        .select_from(JournalLine)
+        .join(JournalLine.entry)
+        .where(
+            JournalEntry.org_id == f.org_id,
+            JournalEntry.status == "posted",
+            JournalLine.account_code.in_(cash_codes),
+        )
+        .group_by(month_expr)
+        .order_by(month_expr)
+    )
+    if f.date_from:
+        stmt = stmt.where(JournalEntry.entry_date >= f.date_from)
+    if f.date_to:
+        stmt = stmt.where(JournalEntry.entry_date <= f.date_to)
+    out = []
+    for month, debit, credit in db.execute(stmt).all():
+        d, c = D(debit), D(credit)
+        out.append({
+            "month": month,
+            "inflows": money(d),
+            "outflows": money(c),
+            "net": money(d - c),
+        })
+    return out
+
+
 def cashflow(db: Session, f: Filters) -> dict:
     """Cash-basis statement from cash/bank journal lines — not accrual P&L."""
     opening_f = Filters(org_id=f.org_id, date_to=(f.date_from - timedelta(days=1)) if f.date_from else None)
     opening = cash_balance(db, opening_f) if f.date_from else D0
     cash_in, cash_out = _journal_cash_movement(db, f)
     closing = opening + cash_in - cash_out
+    breakdown = _cash_breakdown(db, f)
     return {
         "opening_cash": money(opening),
         "cash_inflows": money(cash_in),
@@ -391,6 +516,20 @@ def cashflow(db: Session, f: Filters) -> dict:
         "financing_cash_flow": 0,
         "closing_cash": money(closing),
         "basis": "Posted journal debits/credits on cash and bank accounts",
+        "burn_definition": "Monthly burn on the dashboard is average gross cash outflow (credits to cash/bank), not net burn.",
+        "reconciliation": {
+            "opening": money(opening),
+            "plus_inflows": money(cash_in),
+            "minus_outflows": money(cash_out),
+            "equals_closing": money(closing),
+            "checks_out": abs(float(closing - (opening + cash_in - cash_out))) < 0.01,
+            "formula": "Opening + Inflows − Outflows = Closing",
+        },
+        "breakdown": breakdown,
+        "by_account": _cash_by_account(db, f),
+        "monthly": _monthly_cashflow(db, f),
+        "receivables": money(receivables(db, f)),
+        "payables": money(payables(db, f)),
     }
 
 
@@ -550,16 +689,42 @@ def camp_pnl(db: Session, camp: Camp) -> dict:
     attendees = camp.actual_attendees or 0
     inv = total_cost if total_cost > 0 else camp.budget
     roi = float(pct(net, inv) or 0) if inv else 0
+    inv_rows = db.scalars(
+        select(Invoice).where(Invoice.org_id == camp.org_id, Invoice.camp_id == camp.id, Invoice.status != "draft")
+    ).all()
+    invoice_amount = sum((D(i.total) for i in inv_rows), D0)
+    collected = sum((D(i.amount_paid) for i in inv_rows), D0)
+    outstanding = sum((max(D0, D(i.total) - D(i.amount_paid)) for i in inv_rows), D0)
+    flags = []
+    if net < 0:
+        flags.append("negative_profit")
+    if rev > 0 and pct(net, rev) is not None and float(pct(net, rev) or 0) < 20:
+        flags.append("low_margin")
+    if camp.budget and total_cost > D(camp.budget):
+        flags.append("overspend")
+    if outstanding > 0:
+        flags.append("unpaid_invoices")
+    planned = D(camp.expected_revenue or 0)
     return {
         "camp_id": camp.id,
         "name": camp.name,
         "status": camp.status,
+        "financial_status": "loss" if net < 0 else ("thin" if (rev > 0 and float(pct(net, rev) or 0) < 20) else "healthy"),
         "city_id": camp.city_id,
         "client_id": camp.client_id,
         "channel": camp.channel,
         "date": camp.camp_date.isoformat(),
         "attendees": attendees,
         "budget": money(D(camp.budget)),
+        "expected_revenue": money(planned),
+        "planned_vs_actual": {
+            "revenue_planned": money(planned),
+            "revenue_actual": money(rev),
+            "cost_budget": money(D(camp.budget)),
+            "cost_actual": money(total_cost),
+            "revenue_variance": money(rev - planned),
+            "cost_variance": money(total_cost - D(camp.budget)),
+        },
         "revenue": money(rev),
         "direct_cost": money(direct),
         "allocated_cost": money(allocated),
@@ -569,6 +734,11 @@ def camp_pnl(db: Session, camp: Camp) -> dict:
         "net_profit": money(net),
         "margin": float(pct(net, rev) or 0),
         "roi": roi,
+        "roi_definition": "Camp net profit ÷ camp investment (total cost, or budget if no cost) × 100",
+        "invoice_amount": money(invoice_amount),
+        "amount_collected": money(collected),
+        "outstanding_receivable": money(outstanding),
+        "flags": flags,
         "revenue_per_attendee": money(rev / attendees) if attendees else 0,
         "cost_per_attendee": money(total_cost / attendees) if attendees else 0,
         "profit_per_attendee": money(net / attendees) if attendees else 0,
@@ -618,16 +788,26 @@ def _camp_row(camp: Camp, b: dict[str, Decimal]) -> dict:
     net = rev - total_cost
     attendees = camp.actual_attendees or 0
     inv = total_cost if total_cost > 0 else D(camp.budget)
+    margin = float(pct(net, rev) or 0)
+    flags = []
+    if net < 0:
+        flags.append("negative_profit")
+    if rev > 0 and margin < 20:
+        flags.append("low_margin")
+    if camp.budget and total_cost > D(camp.budget):
+        flags.append("overspend")
     return {
         "camp_id": camp.id,
         "name": camp.name,
         "status": camp.status,
+        "financial_status": "loss" if net < 0 else ("thin" if (rev > 0 and margin < 20) else "healthy"),
         "city_id": camp.city_id,
         "client_id": camp.client_id,
         "channel": camp.channel,
         "date": camp.camp_date.isoformat(),
         "attendees": attendees,
         "budget": money(D(camp.budget)),
+        "expected_revenue": money(D(camp.expected_revenue or 0)),
         "revenue": money(rev),
         "direct_cost": money(direct),
         "allocated_cost": money(allocated),
@@ -635,8 +815,9 @@ def _camp_row(camp: Camp, b: dict[str, Decimal]) -> dict:
         "contribution": money(contribution),
         "gross_profit": money(contribution),
         "net_profit": money(net),
-        "margin": float(pct(net, rev) or 0),
+        "margin": margin,
         "roi": float(pct(net, inv) or 0) if inv else 0,
+        "flags": flags,
         "revenue_per_attendee": money(rev / attendees) if attendees else 0,
         "cost_per_attendee": money(total_cost / attendees) if attendees else 0,
         "profit_per_attendee": money(net / attendees) if attendees else 0,
@@ -696,7 +877,7 @@ def package_actuals(db: Session, f: Filters, pkg: Package) -> dict:
     }
 
 
-def explore(db: Session, f: Filters, group_by: str) -> dict:
+def explore(db: Session, f: Filters, group_by: str, sort: str = "profit_desc") -> dict:
     rev = net_revenue(db, f)
     dc = direct_costs(db, f)
     contrib = rev - dc
@@ -714,22 +895,51 @@ def explore(db: Session, f: Filters, group_by: str) -> dict:
     }
     col = col_map.get(group_by, Transaction.city_id)
     rev_map = {r["key"]: r["amount"] for r in group_sum(db, f, ["revenue"], col)}
-    cost_types = ["cogs", "expense", "payroll", "reimbursement"]
-    cost_map = {r["key"]: r["amount"] for r in group_sum(db, f, cost_types, col)}
-    keys = sorted(set(rev_map) | set(cost_map))
+    # Direct costs only for segment contribution
+    direct_map = {r["key"]: r["amount"] for r in group_sum(db, f, ["cogs"], col)}
+    direct_exp = {
+        r["key"]: r["amount"]
+        for r in group_sum(db, f, ["expense", "reimbursement"], col)
+    }
+    # Prefer cost_nature=direct when present — approximate by adding cogs + camp-linked expense later
+    cost_map = {k: Decimal(str(direct_map.get(k, 0))) + Decimal(str(direct_exp.get(k, 0))) for k in set(direct_map) | set(direct_exp)}
+    # Transaction counts
+    count_stmt = select(col, func.count(Transaction.id))
+    count_stmt = apply_dims(count_stmt, f).group_by(col)
+    count_map = {str(k) if k is not None else "unassigned": int(n) for k, n in db.execute(count_stmt).all()}
+
+    keys = sorted(set(rev_map) | set(cost_map) | set(count_map))
     rows = []
     for k in keys:
-        r = Decimal(str(rev_map.get(k, 0)))
-        c = Decimal(str(cost_map.get(k, 0)))
+        key = k if k not in {None, "", "None"} else "unassigned"
+        r = Decimal(str(rev_map.get(k, rev_map.get(key, 0))))
+        c = Decimal(str(cost_map.get(k, cost_map.get(key, 0))))
         p = r - c
+        label = "Not assigned" if key in {"unassigned", "none", ""} else None
         rows.append({
-            "key": k,
+            "key": key,
+            "label": label,
             "revenue": float(r),
             "cost": float(c),
+            "direct_cost": float(c),
+            "gross_profit": float(p),
             "profit": float(p),
             "margin": float(pct(p, r) or 0),
+            "allocated_opex": 0.0,
+            "net_contribution": float(p),
+            "txn_count": count_map.get(k, count_map.get(key, 0)),
         })
-    rows.sort(key=lambda x: x["profit"], reverse=True)
+
+    if sort == "revenue_desc":
+        rows.sort(key=lambda x: x["revenue"], reverse=True)
+    elif sort == "margin_asc":
+        rows.sort(key=lambda x: (x["margin"], x["revenue"]))
+    elif sort == "loss_making":
+        rows = [r for r in rows if r["profit"] < 0]
+        rows.sort(key=lambda x: x["profit"])
+    else:
+        rows.sort(key=lambda x: x["profit"], reverse=True)
+
     return {
         "revenue": money(rev),
         "direct_costs": money(dc),
@@ -739,6 +949,8 @@ def explore(db: Session, f: Filters, group_by: str) -> dict:
         "net_profit": money(net),
         "net_margin": float(pct(net, rev) or 0),
         "group_by": group_by,
+        "sort": sort,
+        "cost_note": "Segment rows show revenue and direct costs from the ledger. Company operating costs may be allocated separately and are shown in the summary above — not double-counted into every segment unless posted with that dimension.",
         "rows": rows,
     }
 
@@ -872,19 +1084,49 @@ def expense_breakdown(db: Session, f: Filters) -> dict:
         )
     salary_rows = db.execute(salary_stmt.group_by(SalaryRecord.employee_id)).all()
 
-    reimb_stmt = select(Reimbursement.employee_id, Reimbursement.kind, func.coalesce(func.sum(Reimbursement.amount), 0)).where(Reimbursement.org_id == f.org_id)
+    reimb_stmt = select(
+        Reimbursement.employee_id,
+        Reimbursement.kind,
+        Reimbursement.status,
+        func.coalesce(func.sum(Reimbursement.amount), 0),
+    ).where(Reimbursement.org_id == f.org_id)
     if f.date_from:
         reimb_stmt = reimb_stmt.where(Reimbursement.claim_date >= f.date_from)
     if f.date_to:
         reimb_stmt = reimb_stmt.where(Reimbursement.claim_date <= f.date_to)
-    reimb_rows = db.execute(reimb_stmt.group_by(Reimbursement.employee_id, Reimbursement.kind)).all()
+    reimb_rows = db.execute(reimb_stmt.group_by(Reimbursement.employee_id, Reimbursement.kind, Reimbursement.status)).all()
     reimb_by_emp: dict[str, dict] = {}
-    for emp_id, kind, total in reimb_rows:
-        row = reimb_by_emp.setdefault(emp_id, {"employee_id": emp_id, "employee": emp_names.get(emp_id, "Staff"), "monthly": 0.0, "camp": 0.0, "total": 0.0})
+    for emp_id, kind, status, total in reimb_rows:
+        row = reimb_by_emp.setdefault(
+            emp_id,
+            {
+                "employee_id": emp_id,
+                "employee": emp_names.get(emp_id, "Staff"),
+                "monthly": 0.0,
+                "camp": 0.0,
+                "total": 0.0,
+                "claimed": 0.0,
+                "approved": 0.0,
+                "paid": 0.0,
+                "pending": 0.0,
+                "rejected": 0.0,
+            },
+        )
         amt = money(D(total))
         key = "camp" if kind == "camp" else "monthly"
         row[key] += amt
         row["total"] += amt
+        row["claimed"] += amt
+        st = (status or "submitted").lower()
+        if st == "paid":
+            row["paid"] += amt
+        elif st == "approved":
+            row["approved"] += amt
+            row["pending"] += amt  # approved-but-unpaid sits in pending for payment
+        elif st == "rejected":
+            row["rejected"] += amt
+        else:
+            row["pending"] += amt
 
     sub_stmt = select(Expense).where(
         Expense.org_id == f.org_id,

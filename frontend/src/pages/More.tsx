@@ -500,15 +500,37 @@ export function Budgets() {
   );
 }
 
+type CashflowReport = {
+  opening_cash: number;
+  cash_inflows: number;
+  cash_outflows: number;
+  operating_cash_flow: number;
+  closing_cash: number;
+  receivables: number;
+  payables: number;
+  burn_definition?: string;
+  breakdown: {
+    customer_collections: number;
+    other_inflows: number;
+    supplier_payments: number;
+    employee_payments: number;
+    other_outflows: number;
+  };
+  reconciliation: { formula: string; checks_out: boolean; opening: number; plus_inflows: number; minus_outflows: number; equals_closing: number };
+  by_account: { account_code: string; account_name: string; balance: number; kind: string }[];
+  monthly: { month: string; inflows: number; outflows: number; net: number }[];
+};
+
 export function Reports() {
   const { filters } = useFilters();
+  const q = toQuery(filters);
   const { data: pnl } = useQuery({
     queryKey: ["pnl", filters],
-    queryFn: () => api<Record<string, unknown>>(`/reports/pnl${toQuery(filters)}`),
+    queryFn: () => api<Record<string, unknown>>(`/reports/pnl${q}`),
   });
   const { data: cf } = useQuery({
     queryKey: ["cf", filters],
-    queryFn: () => api<Record<string, number>>(`/reports/cashflow${toQuery(filters)}`),
+    queryFn: () => api<CashflowReport>(`/reports/cashflow${q}`),
   });
 
   const revenue = Number(pnl?.total_revenue || 0);
@@ -517,8 +539,13 @@ export function Reports() {
   const grossMargin = Number(pnl?.gross_margin || 0);
   const opex = Number(pnl?.total_opex || 0);
   const ebitda = Number(pnl?.ebitda || 0);
+  const depreciation = Number(pnl?.depreciation || 0);
+  const interest = Number(pnl?.interest || 0);
+  const taxes = Number(pnl?.taxes || 0);
   const netProfit = Number(pnl?.net_profit || 0);
   const bottomNegative = ebitda < 0 || netProfit < 0;
+  const revenueLines = (pnl?.revenue_lines as { key: string; label?: string; amount: number }[]) || [];
+  const formulaNote = (pnl?.formulas as { note?: string } | undefined)?.note;
 
   return (
     <div className="space-y-4">
@@ -526,15 +553,20 @@ export function Reports() {
         title="Overall P&L"
         subtitle="Profit and loss and cash flow from posted journal activity."
         actions={
-          <button type="button" className="btn-secondary" onClick={() => downloadExport("pnl")}>
-            <Download className="size-3.5" />
-            Export P&L
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-secondary" onClick={() => downloadExport("cashflow", "csv", q)}>
+              <Download className="size-3.5" />
+              Cash statement
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => downloadExport("pnl", "csv", q)}>
+              <Download className="size-3.5" />
+              Export P&L
+            </button>
+          </div>
         }
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Profit & Loss */}
         <section className="surface-card flex flex-col p-5 md:p-6">
           <div className="mb-5 flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -549,9 +581,17 @@ export function Reports() {
           {pnl ? (
             <div className="flex flex-1 flex-col">
               <div className="mb-4">
-                <p className="text-xs font-medium text-muted-foreground">Total revenue</p>
-                <p className="num mt-1 text-2xl font-bold tracking-tight md:text-[1.75rem]">{inr(revenue, false)}</p>
+                <p className="text-xs font-medium text-muted-foreground" title="Recognised revenue in the selected period">Total revenue</p>
+                <p className="num mt-1 text-2xl font-bold tracking-tight md:text-[1.75rem]" title={String(revenue)}>{inr(revenue, false)}</p>
               </div>
+
+              {revenueLines.length ? (
+                <div className="mb-3 space-y-0 border-t border-border/70">
+                  {revenueLines.map((line) => (
+                    <PnLLine key={line.key} label={line.label || line.key} value={Number(line.amount)} />
+                  ))}
+                </div>
+              ) : null}
 
               <div className="space-y-0 border-t border-border/70">
                 <PnLLine label="Direct costs" value={cogs} />
@@ -568,7 +608,16 @@ export function Reports() {
 
               <div className="border-t border-border/70">
                 <PnLLine label="Operating expenses" value={opex} />
+                {depreciation || interest || taxes ? (
+                  <>
+                    <PnLLine label="Depreciation" value={depreciation} />
+                    <PnLLine label="Interest" value={interest} />
+                    <PnLLine label="Tax" value={taxes} />
+                  </>
+                ) : null}
               </div>
+
+              {formulaNote ? <p className="mt-2 text-[11px] text-muted-foreground">{formulaNote}</p> : null}
 
               <div
                 className={`mt-auto grid grid-cols-2 gap-0 overflow-hidden rounded-2xl ${
@@ -584,14 +633,14 @@ export function Reports() {
                     {ebitda < 0 ? <ArrowDownRight className="size-3.5" /> : <ArrowUpRight className="size-3.5" />}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">EBITDA</p>
+                    <p className="text-xs text-muted-foreground" title="Gross profit − operating expenses">EBITDA</p>
                     <p className={`num mt-0.5 truncate text-sm font-bold ${ebitda < 0 ? "text-negative" : "text-positive"}`}>
                       {inr(ebitda, false)}
                     </p>
                   </div>
                 </div>
                 <div className="px-4 py-3.5">
-                  <p className="text-xs text-muted-foreground">Net profit</p>
+                  <p className="text-xs text-muted-foreground" title="EBITDA less depreciation, interest and tax where tracked">Net profit</p>
                   <p className={`num mt-0.5 truncate text-sm font-bold ${netProfit < 0 ? "text-negative" : "text-positive"}`}>
                     {inr(netProfit, false)}
                   </p>
@@ -603,7 +652,6 @@ export function Reports() {
           )}
         </section>
 
-        {/* Cash flow */}
         <section className="surface-card flex flex-col p-5 md:p-6">
           <div className="mb-5 flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -626,6 +674,9 @@ export function Reports() {
                     Cash inflows
                   </div>
                   <p className="num mt-1.5 text-base font-bold text-positive">+{inr(Math.abs(cf.cash_inflows), false)}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Collections {inr(cf.breakdown.customer_collections, false)} · Other {inr(cf.breakdown.other_inflows, false)}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-negative/10 px-3.5 py-3">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-negative">
@@ -633,12 +684,47 @@ export function Reports() {
                     Cash outflows
                   </div>
                   <p className="num mt-1.5 text-base font-bold text-negative">-{inr(Math.abs(cf.cash_outflows), false)}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Supplier {inr(cf.breakdown.supplier_payments, false)} · Staff {inr(cf.breakdown.employee_payments, false)}
+                  </p>
                 </div>
               </div>
 
               <div className="border-t border-border/70">
                 <PnLLine label="Operating CF" value={cf.operating_cash_flow} tone />
+                <PnLLine label="Receivables (not cash)" value={cf.receivables} />
+                <PnLLine label="Payables (not cash)" value={cf.payables} />
               </div>
+
+              {cf.by_account?.length ? (
+                <div className="mt-3 space-y-1">
+                  <p className="text-[11px] font-medium text-muted-foreground">Cash &amp; bank by account</p>
+                  {cf.by_account.map((a) => (
+                    <div key={a.account_code} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">{a.account_name} ({a.kind})</span>
+                      <span className="num font-semibold">{inr(a.balance, false)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <p className="mt-3 rounded-xl bg-surface-soft px-3 py-2 text-[11px] text-muted-foreground">
+                Reconciliation: {cf.reconciliation.formula}
+                {cf.reconciliation.checks_out ? " · checks out" : ""}
+              </p>
+              {cf.burn_definition ? <p className="mt-1 text-[10px] text-muted-foreground">{cf.burn_definition}</p> : null}
+
+              {cf.monthly?.length ? (
+                <div className="mt-3 max-h-28 overflow-y-auto text-xs">
+                  <p className="mb-1 font-medium text-muted-foreground">Monthly cash flow</p>
+                  {cf.monthly.map((m) => (
+                    <div key={m.month} className="flex justify-between border-b border-border/50 py-1 last:border-0">
+                      <span>{m.month}</span>
+                      <span className={`num ${m.net < 0 ? "text-negative" : ""}`}>{inr(m.net, false)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="mt-auto flex items-center justify-between gap-3 rounded-2xl bg-positive/10 px-4 py-3.5">
                 <div className="flex items-center gap-2.5">
@@ -737,18 +823,59 @@ export function SettingsPage() {
     queryFn: () => api<{ items: { year: number; month: number; status: string }[] }>("/periods"),
   });
   const qc = useQueryClient();
+  const [obDate, setObDate] = useState(new Date().toISOString().slice(0, 10));
+  const [obAccount, setObAccount] = useState("1010");
+  const [obAmount, setObAmount] = useState("");
+  const [obNote, setObNote] = useState("");
   const lock = useMutation({
     mutationFn: (p: { year: number; month: number; status: string }) =>
       api(`/periods/${p.year}/${p.month}/${p.status === "locked" ? "unlock" : "lock"}`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["periods"] }),
   });
+  const opening = useMutation({
+    mutationFn: () =>
+      api("/opening-balances", {
+        method: "POST",
+        body: JSON.stringify({
+          entry_date: obDate,
+          account_code: obAccount,
+          amount: Number(obAmount),
+          note: obNote || null,
+        }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries();
+      setObAmount("");
+      setObNote("");
+    },
+  });
   return (
     <div className="space-y-3">
       <PageHeader title="Settings" subtitle="Organization, periods, and security." />
       <div className="grid gap-3 lg:grid-cols-[minmax(0,360px)_1fr]">
-        <div className="surface-card p-3.5 md:p-4 text-sm">
-          <p className="font-medium">SUPERSSHYFT · INR · Development OTP 424242</p>
-          <p className="mt-2 text-muted-foreground">Production: set ENVIRONMENT=production, a strong SECRET_KEY, PostgreSQL DATABASE_URL, COOKIE_SECURE=true, and a real SMS provider. Period locking and RBAC are enforced on the API.</p>
+        <div className="space-y-3">
+          <div className="surface-card p-3.5 md:p-4 text-sm">
+            <p className="font-medium">SUPERSSHYFT · INR · Development OTP 424242</p>
+            <p className="mt-2 text-muted-foreground">Production: set ENVIRONMENT=production, a strong SECRET_KEY, PostgreSQL DATABASE_URL, COOKIE_SECURE=true, and a real SMS provider. Period locking and RBAC are enforced on the API.</p>
+          </div>
+          <div className="surface-card p-3.5 md:p-4 text-sm">
+            <h2 className="mb-2 text-sm font-semibold tracking-tight">Opening cash / bank balance</h2>
+            <p className="mb-3 text-xs text-muted-foreground">Posts to cash or bank with an audit trail. Use when starting books mid-year.</p>
+            <div className="space-y-2">
+              <input className="h-9 w-full rounded-xl border border-input bg-card px-3 text-sm" type="date" value={obDate} onChange={(e) => setObDate(e.target.value)} />
+              <select className="h-9 w-full rounded-xl border border-input bg-card px-3 text-sm" value={obAccount} onChange={(e) => setObAccount(e.target.value)}>
+                <option value="1010">Bank (1010)</option>
+                <option value="1000">Cash (1000)</option>
+              </select>
+              <input className="h-9 w-full rounded-xl border border-input bg-card px-3 text-sm" type="number" placeholder="Amount" value={obAmount} onChange={(e) => setObAmount(e.target.value)} />
+              <input className="h-9 w-full rounded-xl border border-input bg-card px-3 text-sm" placeholder="Supporting note" value={obNote} onChange={(e) => setObNote(e.target.value)} />
+              <button type="button" className="btn-secondary h-9 w-full text-xs" disabled={opening.isPending || !obAmount} onClick={() => opening.mutate()}>
+                {opening.isPending ? "Posting…" : "Post opening balance"}
+              </button>
+              {opening.isError ? <p className="text-xs text-negative">{(opening.error as Error).message}</p> : null}
+              {opening.isSuccess ? <p className="text-xs text-positive">Opening balance posted.</p> : null}
+            </div>
+          </div>
         </div>
         <div className="min-w-0">
           <h2 className="mb-2 text-sm font-medium">Accounting periods</h2>

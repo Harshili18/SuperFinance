@@ -80,6 +80,7 @@ export function Expenses() {
   const [open, setOpen] = useState<"none" | "bill" | "monthly">("none");
   const [bucket, setBucket] = useState("all");
   const [grain, setGrain] = useState("month");
+  const [statusChip, setStatusChip] = useState("all");
   const { data: exp } = useQuery({ queryKey: ["expenses"], queryFn: () => api<{ items: Exp[] }>("/expenses") });
   const { data: reimb } = useQuery({ queryKey: ["reimb"], queryFn: () => api<{ items: Reimb[] }>("/reimbursements") });
   const { data: emps } = useQuery({ queryKey: ["employees"], queryFn: () => api<{ items: Emp[] }>("/employees") });
@@ -136,8 +137,14 @@ export function Expenses() {
       status: r.status,
       source: "reimbursement" as const,
     }));
-    return [...a, ...b].sort((x, y) => (x.date < y.date ? 1 : -1));
-  }, [shownBills, shownClaims]);
+    const all = [...a, ...b].sort((x, y) => (x.date < y.date ? 1 : -1));
+    if (statusChip === "all") return all;
+    if (statusChip === "pending") return all.filter((r) => r.status === "submitted");
+    if (statusChip === "approved_unpaid") return all.filter((r) => r.status === "approved");
+    if (statusChip === "paid") return all.filter((r) => r.status === "paid");
+    if (statusChip === "rejected") return all.filter((r) => r.status === "rejected");
+    return all;
+  }, [shownBills, shownClaims, statusChip]);
 
   return (
     <div className="min-w-0">
@@ -153,6 +160,19 @@ export function Expenses() {
       />
       {open === "bill" ? <div className="mt-3"><ExpenseForm onDone={() => setOpen("none")} /></div> : null}
       {open === "monthly" ? <div className="mt-3"><MonthlyClaimForm onDone={() => setOpen("none")} /></div> : null}
+      <div className="mt-3">
+        <Chips
+          value={statusChip}
+          onChange={setStatusChip}
+          options={[
+            { id: "all", label: "All statuses" },
+            { id: "pending", label: "Pending" },
+            { id: "approved_unpaid", label: "Approved unpaid" },
+            { id: "paid", label: "Paid" },
+            { id: "rejected", label: "Rejected" },
+          ]}
+        />
+      </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.1fr_1fr]">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -210,6 +230,10 @@ export function Expenses() {
                   { key: "employee", label: "Employee" },
                   { key: "monthly", label: "Monthly", align: "right", render: (r) => inr(Number(r.monthly), false) },
                   { key: "camp", label: "Camp", align: "right", render: (r) => inr(Number(r.camp), false) },
+                  { key: "claimed", label: "Claimed", align: "right", render: (r) => inr(Number(r.claimed ?? r.total), false) },
+                  { key: "approved", label: "Approved", align: "right", render: (r) => inr(Number(r.approved || 0), false) },
+                  { key: "paid", label: "Paid", align: "right", render: (r) => inr(Number(r.paid || 0), false) },
+                  { key: "pending", label: "Pending", align: "right", render: (r) => inr(Number(r.pending || 0), false) },
                   { key: "total", label: "Total", align: "right", render: (r) => inr(Number(r.total), false) },
                 ]}
               />

@@ -140,11 +140,13 @@ export function RevenueForm({ campId, onDone }: { campId?: string; onDone?: () =
       <Field label="Amount (₹)"><input className={inputClass} type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
       <Field label="Channel">
         <select className={inputClass} value={channel} onChange={(e) => setChannel(e.target.value)}>
+          <option value="camp">B2B Camp</option>
           <option value="b2b">B2B</option>
-          <option value="camp">Camp</option>
-          <option value="app">App</option>
+          <option value="app">B2C / App</option>
           <option value="b2c">B2C</option>
+          <option value="online_pt">Online Personal Training</option>
           <option value="consultation">Consultation</option>
+          <option value="other">Other</option>
         </select>
       </Field>
       <Field label="Package">

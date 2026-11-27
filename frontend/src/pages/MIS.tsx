@@ -26,7 +26,8 @@ type Expl = {
   contribution: number;
   contribution_margin: number;
   net_profit: number;
-  rows: { key: string; label?: string; revenue: number; cost: number; profit: number; margin: number }[];
+  cost_note?: string;
+  rows: { key: string; label?: string; name?: string; revenue: number; cost: number; profit: number; margin: number; txn_count?: number }[];
 };
 
 const GROUPS = [
@@ -94,6 +95,7 @@ export function MIS() {
   const nav = useNavigate();
   const { filters, setFilters } = useFilters();
   const [group, setGroup] = useState("city");
+  const [sort, setSort] = useState("profit_desc");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["executive", filters],
@@ -101,8 +103,8 @@ export function MIS() {
   });
 
   const { data: expl } = useQuery({
-    queryKey: ["explore", filters, group],
-    queryFn: () => api<Expl>(`/profitability${toQuery(filters)}&group_by=${group}`),
+    queryKey: ["explore", filters, group, sort],
+    queryFn: () => api<Expl>(`/profitability${toQuery(filters)}&group_by=${group}&sort=${sort}`),
   });
 
   const cityData = useMemo(
@@ -120,7 +122,7 @@ export function MIS() {
         title="MIS & Analytics"
         subtitle="Same ledger, sliced for management."
         actions={
-          <button type="button" className="btn-secondary" onClick={() => downloadExport("pnl")}>
+          <button type="button" className="btn-secondary" onClick={() => downloadExport("pnl", "csv", toQuery(filters))}>
             <Download className="size-3.5" />
             Export
           </button>
@@ -178,7 +180,7 @@ export function MIS() {
           <h3 className="text-sm font-semibold tracking-tight">Profitability by dimension</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">Slice the ledger, then drill into a row</p>
         </div>
-        <div className="mb-3 flex flex-wrap gap-1.5">
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
           {GROUPS.map((g) => (
             <button
               key={g.id}
@@ -193,6 +195,17 @@ export function MIS() {
               {g.label}
             </button>
           ))}
+          <select
+            className="ml-auto h-7 rounded-full border border-border bg-card px-2 text-xs"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            title="Sort segments"
+          >
+            <option value="profit_desc">Highest profit</option>
+            <option value="revenue_desc">Highest revenue</option>
+            <option value="margin_asc">Lowest margin</option>
+            <option value="loss_making">Loss-making only</option>
+          </select>
         </div>
 
         {expl ? (
@@ -211,9 +224,15 @@ export function MIS() {
                 </div>
               ))}
             </div>
+            {expl.cost_note ? <p className="mb-3 text-[11px] text-muted-foreground">{expl.cost_note}</p> : null}
             <DataTable
-              rows={expl.rows.map((r) => ({ ...r, id: r.key, name: r.label || r.key }))}
+              rows={expl.rows.map((r) => ({
+                ...r,
+                id: r.key,
+                name: (r as { name?: string }).name || r.label || (r.key === "unassigned" ? "Not assigned" : r.key),
+              }))}
               onRow={(r) => {
+                if (String(r.key) === "unassigned") return;
                 const map: Record<string, keyof typeof filters> = {
                   city: "city_id",
                   client: "client_id",
@@ -232,6 +251,7 @@ export function MIS() {
               empty="No transactions match these filters."
               columns={[
                 { key: "name", label: GROUPS.find((g) => g.id === group)?.label || group },
+                { key: "txn_count", label: "Txns", align: "right", render: (r) => String(r.txn_count ?? "—") },
                 { key: "revenue", label: "Revenue", align: "right", render: (r) => inr(Number(r.revenue)) },
                 { key: "cost", label: "Direct costs", align: "right", render: (r) => inr(Number(r.cost)) },
                 {

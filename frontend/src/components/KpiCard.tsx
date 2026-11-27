@@ -1,5 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
-import { delta, inr, pct } from "../lib/format";
+import { delta, inr, inrExact, pct, METRIC_HELP } from "../lib/format";
 import type { Kpi } from "../lib/api";
 
 export function KpiCard({
@@ -23,12 +23,14 @@ export function KpiCard({
   const up = (ch ?? 0) >= 0;
   const Tone = ch === null || ch === undefined ? Minus : up ? ArrowUpRight : ArrowDownRight;
   const negativeValue = kpi.value < 0;
+  const help = METRIC_HELP[label];
+  const exactTitle = format === "money" ? inrExact(kpi.value) : help || undefined;
 
   if (featured) {
     return (
-      <div className="kpi-featured min-w-0 p-3.5">
+      <div className="kpi-featured min-w-0 p-3.5" title={help || exactTitle}>
         <p className="truncate text-[11px] font-medium uppercase tracking-[0.08em] text-primary-foreground/70">{label}</p>
-        <p className="num mt-1.5 truncate text-xl font-bold tracking-tight md:text-2xl">{display}</p>
+        <p className="num mt-1.5 truncate text-xl font-bold tracking-tight md:text-2xl" title={exactTitle}>{display}</p>
         <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px]">
           {ch !== null && ch !== undefined ? (
             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-white/15 px-2 py-0.5 font-semibold text-primary-foreground">
@@ -43,9 +45,12 @@ export function KpiCard({
   }
 
   return (
-    <div className="surface-card min-w-0 p-3">
-      <p className="truncate text-[11px] font-medium text-muted-foreground">{label}</p>
-      <p className={`num mt-1 truncate text-lg font-semibold tracking-tight md:text-xl ${negativeValue ? "text-negative" : "text-foreground"}`}>
+    <div className="surface-card min-w-0 p-3" title={help}>
+      <p className="truncate text-[11px] font-medium text-muted-foreground" title={help}>{label}</p>
+      <p
+        className={`num mt-1 truncate text-lg font-semibold tracking-tight md:text-xl ${negativeValue ? "text-negative" : "text-foreground"}`}
+        title={exactTitle}
+      >
         {display}
       </p>
       <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px]">

@@ -225,6 +225,14 @@ class ThemeIn(BaseModel):
     theme: str
 
 
+class OpeningBalanceIn(BaseModel):
+    entry_date: date
+    account_code: str = "1010"  # 1000 cash / 1010 bank
+    amount: Decimal
+    note: str | None = None
+    reference: str | None = None
+
+
 class QueryFilters(BaseModel):
     date_from: date | None = None
     date_to: date | None = None

@@ -61,12 +61,17 @@ def investor(db: Session = Depends(get_db), user: User = Depends(current_user), 
 @router.get("/profitability")
 def profitability(
     group_by: str = Query("city"),
+    sort: str = Query("profit_desc"),
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
     f: Filters = Depends(qfilters),
 ):
-    data = F.explore(db, f, group_by)
+    data = F.explore(db, f, group_by, sort=sort)
     data["rows"] = _hydrate_keys(db, user.org_id, group_by, data["rows"])
+    for row in data["rows"]:
+        if row.get("key") in {"unassigned", "none", ""} or not row.get("name"):
+            row["name"] = row.get("label") or "Not assigned"
+            row["label"] = "Not assigned"
     return data
 
 

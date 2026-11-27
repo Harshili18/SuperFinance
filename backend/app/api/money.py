@@ -155,6 +155,17 @@ def send_invoice(invoice_id: str, db: Session = Depends(get_db), user: User = De
         raise HTTPException(404, "Invoice not found.")
     if inv.status not in {"draft", "approved"}:
         raise HTTPException(400, "Only draft invoices can be sent.")
+    from app.models import Transaction
+    existing = db.scalar(
+        select(Transaction.id).where(
+            Transaction.org_id == user.org_id,
+            Transaction.invoice_id == inv.id,
+            Transaction.txn_type == "revenue",
+            Transaction.status == "posted",
+        )
+    )
+    if existing:
+        raise HTTPException(400, "Revenue is already posted for this invoice. Use a linked collection (payment) instead of sending again.")
     inv.status = "sent"
     pkg_id = inv.items[0].package_id if inv.items else None
     post_transaction(
@@ -326,6 +337,19 @@ def create_reimb(body: ReimbursementIn, db: Session = Depends(get_db), user: Use
         data["description"] = f"Camp reimbursement · {data['category']}"
     elif kind == "monthly" and not data.get("description"):
         data["description"] = f"Monthly reimbursement · {data['category']}"
+    # Duplicate-claim check: same employee, date, amount, category (and camp if set)
+    dup_q = select(Reimbursement).where(
+        Reimbursement.org_id == user.org_id,
+        Reimbursement.employee_id == data["employee_id"],
+        Reimbursement.claim_date == data["claim_date"],
+        Reimbursement.amount == data["amount"],
+        Reimbursement.category == data["category"],
+        Reimbursement.status != "rejected",
+    )
+    if data.get("camp_id"):
+        dup_q = dup_q.where(Reimbursement.camp_id == data["camp_id"])
+    if db.scalar(dup_q):
+        raise HTTPException(400, "Possible duplicate claim: same employee, date, amount and category already exists.")
     r = Reimbursement(org_id=user.org_id, status="submitted", **data)
     db.add(r)
     db.commit()

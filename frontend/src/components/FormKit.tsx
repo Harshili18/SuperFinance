@@ -62,8 +62,12 @@ export function PanelForm({
   );
 }
 
-export function downloadExport(module: string, fmt: "csv" | "xlsx" = "csv") {
-  window.open(apiUrl(`/export/${module}?fmt=${fmt}`), "_blank");
+export function downloadExport(module: string, fmt: "csv" | "xlsx" = "csv", filterQuery = "") {
+  // filterQuery from toQuery() already starts with "?" when non-empty
+  const path = filterQuery
+    ? `/export/${module}${filterQuery}&fmt=${fmt}`
+    : `/export/${module}?fmt=${fmt}`;
+  window.open(apiUrl(path), "_blank");
 }
 
 export function Pill({

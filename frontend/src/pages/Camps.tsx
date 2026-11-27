@@ -33,6 +33,9 @@ export function Camps() {
   const [city, setCity] = useState("");
   const [client, setClient] = useState("");
   const [channel, setChannel] = useState("b2b");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [clientFilter, setClientFilter] = useState("");
   const create = useMutation({
     mutationFn: () =>
       api("/camps", {
@@ -46,7 +49,13 @@ export function Camps() {
     },
   });
   const { data } = useQuery({ queryKey: ["camps"], queryFn: () => api<{ items: CampRow[] }>("/camps") });
-  const rows = data?.items || [];
+  const rows = useMemo(() => {
+    let list = data?.items || [];
+    if (statusFilter) list = list.filter((r) => r.status === statusFilter);
+    if (cityFilter) list = list.filter((r) => String(r.city || "") === cityFilter || String((r as CampRow & { city_id?: string }).city_id || "") === cityFilter);
+    if (clientFilter) list = list.filter((r) => String(r.client || "") === clientFilter || String((r as CampRow & { client_id?: string }).client_id || "") === clientFilter);
+    return list;
+  }, [data, statusFilter, cityFilter, clientFilter]);
 
   const totals = useMemo(() => {
     const revenue = rows.reduce((s, r) => s + Number(r.revenue || 0), 0);
@@ -94,6 +103,25 @@ export function Camps() {
         </form>
       ) : null}
 
+      <div className="flex flex-wrap gap-2">
+        <select className={inputClass + " w-auto"} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="">All statuses</option>
+          <option value="planned">Planned</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="in_progress">In progress</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select className={inputClass + " w-auto"} value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
+          <option value="">All cities</option>
+          {lu?.cities.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+        </select>
+        <select className={inputClass + " w-auto"} value={clientFilter} onChange={(e) => setClientFilter(e.target.value)}>
+          <option value="">All clients</option>
+          {lu?.clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+        </select>
+      </div>
+
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <KpiCard label="Camps" kpi={{ value: totals.camps }} format="number" />
         <KpiCard label="Revenue" kpi={{ value: totals.revenue }} />
@@ -121,10 +149,19 @@ export function Camps() {
             render: (r) => <span className={Number(r.net_profit) >= 0 ? "" : "text-negative"}>{inr(Number(r.net_profit))}</span>,
           },
           { key: "margin", label: "Margin", align: "right", render: (r) => pct(Number(r.margin)) },
-          { key: "roi", label: "ROI", align: "right", render: (r) => pct(Number(r.roi)) },
-          { key: "status", label: "Status" },
-        ]}
-      />
+            { key: "roi", label: "ROI", align: "right", render: (r) => <span title="Camp profit ÷ investment × 100">{pct(Number(r.roi))}</span> },
+            {
+              key: "flags",
+              label: "Flags",
+              render: (r) => {
+                const flags = (r as CampRow & { flags?: string[] }).flags || [];
+                if (!flags.length) return "—";
+                return flags.map((f) => f.replace(/_/g, " ")).join(", ");
+              },
+            },
+            { key: "status", label: "Status" },
+          ]}
+        />
     </div>
   );
 }
