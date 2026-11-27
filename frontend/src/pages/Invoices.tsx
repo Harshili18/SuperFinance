@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, apiUrl } from "../lib/api";
 import { toQuery, useFilters } from "../lib/filters";
@@ -7,21 +7,18 @@ import { DataTable } from "../components/DataTable";
 import { PageHeader } from "../components/AppShell";
 import { KpiCard } from "../components/KpiCard";
 import { Chips, downloadExport } from "../components/FormKit";
-import { InvoiceForm, PaymentForm } from "../components/MoneyForms";
+import { InvoiceForm, PaymentForm, SendInvoiceModal } from "../components/MoneyForms";
 
 export function Invoices() {
   const qc = useQueryClient();
   const { filters } = useFilters();
   const [tab, setTab] = useState("invoices");
   const [open, setOpen] = useState<"none" | "invoice" | "payment">("none");
+  const [sendTarget, setSendTarget] = useState<{ id: string; number?: string; client?: string; total?: number } | null>(null);
   const { data } = useQuery({ queryKey: ["invoices"], queryFn: () => api<{ items: Record<string, unknown>[] }>("/invoices") });
   const { data: payments } = useQuery({ queryKey: ["payments"], queryFn: () => api<{ items: Record<string, unknown>[] }>("/payments"), enabled: tab === "payments" });
   const { data: ar } = useQuery({ queryKey: ["ar"], queryFn: () => api<{ total: number; buckets: Record<string, number> }>("/reports/receivables") });
   const { data: ap } = useQuery({ queryKey: ["ap", filters], queryFn: () => api<{ total: number; items: Record<string, unknown>[] }>(`/reports/payables${toQuery(filters)}`), enabled: tab === "payables" || tab === "bills" });
-  const send = useMutation({
-    mutationFn: (id: string) => api(`/invoices/${id}/send`, { method: "POST" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
-  });
 
   return (
     <div>
@@ -42,6 +39,13 @@ export function Invoices() {
       ) : null}
       {open === "payment" ? (
         <div className="mt-3"><PaymentForm onDone={() => setOpen("none")} /></div>
+      ) : null}
+      {sendTarget ? (
+        <SendInvoiceModal
+          invoice={sendTarget}
+          onClose={() => setSendTarget(null)}
+          onSent={() => qc.invalidateQueries({ queryKey: ["invoices"] })}
+        />
       ) : null}
 
       <div className="my-3">
@@ -85,7 +89,21 @@ export function Invoices() {
               label: "",
               render: (r) => (
                 <span className="flex gap-2">
-                  {r.status === "draft" ? <button className="text-xs font-semibold text-primary" onClick={() => send.mutate(String(r.id))}>Send</button> : null}
+                  {r.status === "draft" ? (
+                    <button
+                      className="text-xs font-semibold text-primary"
+                      onClick={() =>
+                        setSendTarget({
+                          id: String(r.id),
+                          number: String(r.number || ""),
+                          client: String(r.client || ""),
+                          total: Number(r.total),
+                        })
+                      }
+                    >
+                      Send
+                    </button>
+                  ) : null}
                   <a className="text-xs font-semibold text-primary" href={apiUrl(`/invoices/${r.id}/pdf`)} target="_blank" rel="noreferrer">PDF</a>
                 </span>
               ),

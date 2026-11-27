@@ -16,7 +16,7 @@ import { KpiCard } from "../components/KpiCard";
 import { MoneyLine, MoneyPie, Panel } from "../components/Charts";
 import type { Kpi } from "../lib/api";
 import { Chips, Pill, downloadExport } from "../components/FormKit";
-import { ClinicianForm, ClinicianPayoutForm, ExpenseForm, InvoiceForm, MonthlyClaimForm, PartnerForm, PaymentForm, RevenueForm, UploadBox } from "../components/MoneyForms";
+import { ClinicianForm, ClinicianPayoutForm, ExpenseForm, InvoiceForm, MonthlyClaimForm, PartnerForm, PaymentForm, RevenueForm, SendInvoiceModal, UploadBox } from "../components/MoneyForms";
 import { Profitability } from "./Profitability";
 
 type MoneyRow = {
@@ -181,11 +181,8 @@ function CsvImport() {
 export function Invoices() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [sendTarget, setSendTarget] = useState<{ id: string; number?: string; client?: string; total?: number } | null>(null);
   const { data } = useQuery({ queryKey: ["invoices"], queryFn: () => api<{ items: Record<string, unknown>[] }>("/invoices") });
-  const send = useMutation({
-    mutationFn: (id: string) => api(`/invoices/${id}/send`, { method: "POST" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
-  });
   return (
     <div className="space-y-3">
       <PageHeader
@@ -199,6 +196,13 @@ export function Invoices() {
         }
       />
       {open ? <InvoiceForm onDone={() => setOpen(false)} /> : null}
+      {sendTarget ? (
+        <SendInvoiceModal
+          invoice={sendTarget}
+          onClose={() => setSendTarget(null)}
+          onSent={() => qc.invalidateQueries({ queryKey: ["invoices"] })}
+        />
+      ) : null}
       <DataTable
         rows={data?.items || []}
         empty="No invoices yet."
@@ -216,7 +220,19 @@ export function Invoices() {
             render: (r) => (
               <span className="flex gap-2">
                 {r.status === "draft" ? (
-                  <button className="text-primary font-semibold hover:underline" onClick={() => send.mutate(String(r.id))}>Send</button>
+                  <button
+                    className="text-primary font-semibold hover:underline"
+                    onClick={() =>
+                      setSendTarget({
+                        id: String(r.id),
+                        number: String(r.number || ""),
+                        client: String(r.client || ""),
+                        total: Number(r.total),
+                      })
+                    }
+                  >
+                    Send
+                  </button>
                 ) : null}
                 <a className="text-primary font-semibold hover:underline" href={apiUrl(`/invoices/${r.id}/pdf`)} target="_blank" rel="noreferrer">PDF</a>
               </span>
@@ -715,18 +731,25 @@ export function Reports() {
               {cf.burn_definition ? <p className="mt-1 text-[10px] text-muted-foreground">{cf.burn_definition}</p> : null}
 
               {cf.monthly?.length ? (
-                <div className="mt-3 max-h-28 overflow-y-auto text-xs">
-                  <p className="mb-1 font-medium text-muted-foreground">Monthly cash flow</p>
-                  {cf.monthly.map((m) => (
-                    <div key={m.month} className="flex justify-between border-b border-border/50 py-1 last:border-0">
-                      <span>{m.month}</span>
-                      <span className={`num ${m.net < 0 ? "text-negative" : ""}`}>{inr(m.net, false)}</span>
-                    </div>
-                  ))}
+                <div className="mt-4">
+                  <p className="mb-2 text-[11px] font-medium text-muted-foreground">Monthly cash flow</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {cf.monthly.map((m) => (
+                      <div
+                        key={m.month}
+                        className="rounded-xl bg-surface-soft px-3 py-2.5"
+                      >
+                        <p className="text-[11px] text-muted-foreground">{m.month}</p>
+                        <p className={`num mt-0.5 text-sm font-semibold tracking-tight ${m.net < 0 ? "text-negative" : "text-positive"}`}>
+                          {inr(m.net, false)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : null}
 
-              <div className="mt-auto flex items-center justify-between gap-3 rounded-2xl bg-positive/10 px-4 py-3.5">
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-positive/10 px-4 py-3.5">
                 <div className="flex items-center gap-2.5">
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-positive/15 text-positive">
                     <Wallet className="size-4" />

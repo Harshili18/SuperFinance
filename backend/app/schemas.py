@@ -125,6 +125,14 @@ class InvoiceIn(BaseModel):
     items: list[InvoiceItemIn]
 
 
+class InvoiceSendIn(BaseModel):
+    channel: str = "email"  # email | whatsapp | sms | print
+    recipient_name: str | None = None
+    recipient_email: str | None = None
+    recipient_phone: str | None = None
+    message: str | None = None
+
+
 class PaymentIn(BaseModel):
     direction: str = "in"
     payment_date: date

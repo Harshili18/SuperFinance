@@ -103,8 +103,8 @@ export function Camps() {
         </form>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <select className={inputClass + " w-auto"} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <select className={inputClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All statuses</option>
           <option value="planned">Planned</option>
           <option value="confirmed">Confirmed</option>
@@ -112,11 +112,11 @@ export function Camps() {
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </select>
-        <select className={inputClass + " w-auto"} value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
+        <select className={inputClass} value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
           <option value="">All cities</option>
           {lu?.cities.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
         </select>
-        <select className={inputClass + " w-auto"} value={clientFilter} onChange={(e) => setClientFilter(e.target.value)}>
+        <select className={inputClass} value={clientFilter} onChange={(e) => setClientFilter(e.target.value)}>
           <option value="">All clients</option>
           {lu?.clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
         </select>

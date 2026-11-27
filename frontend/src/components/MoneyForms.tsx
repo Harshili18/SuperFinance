@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { api } from "../lib/api";
+import { useMemo, useState } from "react";
+import { api, apiUrl } from "../lib/api";
+import { inrExact } from "../lib/format";
 import { Field, PanelForm, inputClass, useLookups } from "./FormKit";
 
 const CATS_CAMP = [
@@ -176,9 +177,18 @@ export function InvoiceForm({ onDone }: { onDone?: () => void }) {
   const [desc, setDesc] = useState("Health camp packages");
   const [qty, setQty] = useState("1");
   const [rate, setRate] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [sendAfter, setSendAfter] = useState<{ id: string; number?: string; client?: string; total?: number } | null>(null);
+  const clientName = lu?.clients.find((c) => c.id === client)?.name || "Client";
+  const campName = lu?.camps.find((c) => c.id === camp)?.name;
+  const qtyN = Number(qty) || 0;
+  const rateN = Number(rate) || 0;
+  const subtotal = qtyN * rateN;
+  const tax = Math.round(subtotal * 0.18 * 100) / 100;
+  const total = Math.round((subtotal + tax) * 100) / 100;
   const mut = useMutation({
     mutationFn: () =>
-      api("/invoices", {
+      api<{ id: string; number: string; status: string; total: number }>("/invoices", {
         method: "POST",
         body: JSON.stringify({
           client_id: client,
@@ -188,32 +198,291 @@ export function InvoiceForm({ onDone }: { onDone?: () => void }) {
           items: [{ description: desc, quantity: Number(qty), rate: Number(rate), gst_rate: 18 }],
         }),
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
-      onDone?.();
+      setSendAfter({
+        id: created.id,
+        number: created.number,
+        client: clientName,
+        total: created.total,
+      });
     },
   });
   return (
-    <PanelForm title="Create invoice" submit="Save draft" busy={mut.isPending} onSubmit={(e) => { e.preventDefault(); mut.mutate(); }}>
-      <Field label="Client">
-        <select className={inputClass} value={client} onChange={(e) => setClient(e.target.value)} required>
-          <option value="">Select client</option>
-          {lu?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </Field>
-      <Field label="Camp">
-        <select className={inputClass} value={camp} onChange={(e) => setCamp(e.target.value)}>
-          <option value="">—</option>
-          {lu?.camps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </Field>
-      <Field label="Invoice date"><input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-      <Field label="Due date"><input className={inputClass} type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
-      <Field label="Line description"><input className={inputClass} value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
-      <Field label="Qty"><input className={inputClass} type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
-      <Field label="Rate (₹)"><input className={inputClass} type="number" min="1" value={rate} onChange={(e) => setRate(e.target.value)} required /></Field>
-      {mut.isError ? <p className="text-sm text-sf-accent md:col-span-3">{(mut.error as Error).message}</p> : null}
-    </PanelForm>
+    <>
+      <PanelForm
+        title="Create invoice"
+        submit="Save draft"
+        busy={mut.isPending}
+        onSubmit={(e) => { e.preventDefault(); mut.mutate(); }}
+        extraActions={
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setPreviewOpen(true)}
+            disabled={!client || !rate}
+          >
+            Preview
+          </button>
+        }
+      >
+        <Field label="Client">
+          <select className={inputClass} value={client} onChange={(e) => setClient(e.target.value)} required>
+            <option value="">Select client</option>
+            {lu?.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Camp">
+          <select className={inputClass} value={camp} onChange={(e) => setCamp(e.target.value)}>
+            <option value="">—</option>
+            {lu?.camps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Invoice date"><input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="Due date"><input className={inputClass} type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
+        <Field label="Line description"><input className={inputClass} value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
+        <Field label="Qty"><input className={inputClass} type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
+        <Field label="Rate (₹)"><input className={inputClass} type="number" min="1" value={rate} onChange={(e) => setRate(e.target.value)} required /></Field>
+        {mut.isError ? <p className="text-sm text-sf-accent md:col-span-3">{(mut.error as Error).message}</p> : null}
+      </PanelForm>
+      {previewOpen ? (
+        <InvoicePreviewModal
+          clientName={clientName}
+          campName={campName}
+          date={date}
+          due={due}
+          desc={desc}
+          qty={qtyN}
+          rate={rateN}
+          subtotal={subtotal}
+          tax={tax}
+          total={total}
+          onClose={() => setPreviewOpen(false)}
+        />
+      ) : null}
+      {sendAfter ? (
+        <SendInvoiceModal
+          invoice={sendAfter}
+          onClose={() => {
+            setSendAfter(null);
+            onDone?.();
+          }}
+          onSent={() => {
+            qc.invalidateQueries({ queryKey: ["invoices"] });
+            onDone?.();
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function InvoicePreviewModal({
+  clientName,
+  campName,
+  date,
+  due,
+  desc,
+  qty,
+  rate,
+  subtotal,
+  tax,
+  total,
+  onClose,
+}: {
+  clientName: string;
+  campName?: string;
+  date: string;
+  due: string;
+  desc: string;
+  qty: number;
+  rate: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <div className="text-sm font-semibold">Invoice preview</div>
+            <div className="text-xs text-muted-foreground">How this will look as a PDF / print</div>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" className="btn-secondary" onClick={() => window.print()}>Print view</button>
+            <button type="button" className="btn-ghost" onClick={onClose}>Close</button>
+          </div>
+        </div>
+        <div className="bg-[#F4F6F6] p-4 md:p-6">
+          <div className="mx-auto max-w-[640px] overflow-hidden rounded-lg bg-white shadow-sm">
+            <div className="flex items-center justify-between bg-[#063533] px-6 py-4 text-white">
+              <div className="text-sm font-bold tracking-wide">SUPERFINANCE</div>
+              <div className="text-xs uppercase tracking-wider">Tax invoice</div>
+            </div>
+            <div className="space-y-5 px-6 py-5 text-sm">
+              <div className="flex flex-wrap justify-between gap-4">
+                <div>
+                  <div className="text-xs text-muted-foreground">Bill to</div>
+                  <div className="font-semibold text-[#063533]">{clientName}</div>
+                  {campName ? <div className="text-xs text-muted-foreground">Camp · {campName}</div> : null}
+                </div>
+                <div className="text-right text-xs text-muted-foreground">
+                  <div>Draft preview</div>
+                  <div>Date {date}</div>
+                  <div>Due {due}</div>
+                </div>
+              </div>
+              <div className="border-t border-[#E4E7E7] pt-3">
+                <div className="mb-2 grid grid-cols-12 gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#063533]">
+                  <div className="col-span-6">Description</div>
+                  <div className="col-span-2 text-right">Qty</div>
+                  <div className="col-span-2 text-right">Rate</div>
+                  <div className="col-span-2 text-right">Amount</div>
+                </div>
+                <div className="grid grid-cols-12 gap-2 border-t border-[#E4E7E7] py-2 text-sm">
+                  <div className="col-span-6">{desc || "—"}</div>
+                  <div className="col-span-2 text-right tabular-nums">{qty || 0}</div>
+                  <div className="col-span-2 text-right tabular-nums">{inrExact(rate)}</div>
+                  <div className="col-span-2 text-right tabular-nums">{inrExact(subtotal)}</div>
+                </div>
+              </div>
+              <div className="ml-auto w-full max-w-[220px] space-y-1 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">{inrExact(subtotal)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">GST 18%</span><span className="tabular-nums">{inrExact(tax)}</span></div>
+                <div className="flex justify-between border-t border-[#E4E7E7] pt-2 font-semibold text-[#063533]">
+                  <span>Total</span><span className="tabular-nums">{inrExact(total)}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Payment terms: Net 30 · This is a preview only; save draft to create the invoice.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SEND_CHANNELS = [
+  { id: "email", label: "Email" },
+  { id: "whatsapp", label: "WhatsApp" },
+  { id: "sms", label: "SMS" },
+  { id: "print", label: "Print" },
+] as const;
+
+export function SendInvoiceModal({
+  invoice,
+  onClose,
+  onSent,
+}: {
+  invoice: { id: string; number?: string; client?: string; total?: number };
+  onClose: () => void;
+  onSent?: () => void;
+}) {
+  const [channel, setChannel] = useState<(typeof SEND_CHANNELS)[number]["id"]>("email");
+  const [name, setName] = useState(invoice.client || "");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState(`Please find invoice ${invoice.number || ""} attached.`);
+  const needsEmail = channel === "email";
+  const needsPhone = channel === "whatsapp" || channel === "sms";
+  const mut = useMutation({
+    mutationFn: () =>
+      api(`/invoices/${invoice.id}/send`, {
+        method: "POST",
+        body: JSON.stringify({
+          channel,
+          recipient_name: name || null,
+          recipient_email: email || null,
+          recipient_phone: phone || null,
+          message: message || null,
+        }),
+      }),
+    onSuccess: () => {
+      if (channel === "print") {
+        window.open(apiUrl(`/invoices/${invoice.id}/pdf`), "_blank", "noopener,noreferrer");
+      }
+      onSent?.();
+      onClose();
+    },
+  });
+  const canSubmit = useMemo(() => {
+    if (needsEmail && !email.trim()) return false;
+    if (needsPhone && !phone.trim()) return false;
+    return true;
+  }, [needsEmail, needsPhone, email, phone]);
+  const submitLabel =
+    channel === "print" ? "Mark sent & print PDF" :
+    channel === "email" ? "Send via email" :
+    channel === "whatsapp" ? "Send via WhatsApp" :
+    "Send via SMS";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl md:p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4">
+          <div className="text-sm font-semibold">Send invoice {invoice.number || ""}</div>
+          <div className="text-xs text-muted-foreground">
+            Choose a channel and recipient. Sending posts revenue and marks the invoice as sent.
+            {invoice.total != null ? ` · ${inrExact(Number(invoice.total))}` : ""}
+          </div>
+        </div>
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {SEND_CHANNELS.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                channel === c.id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-white text-foreground hover:bg-muted"
+              }`}
+              onClick={() => setChannel(c.id)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <div className="grid gap-3">
+          <Field label="Recipient name">
+            <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Contact person" />
+          </Field>
+          {needsEmail ? (
+            <Field label="Email">
+              <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="finance@client.com" />
+            </Field>
+          ) : null}
+          {needsPhone ? (
+            <Field label="Phone">
+              <input className={inputClass} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+91…" />
+            </Field>
+          ) : null}
+          {channel === "print" ? (
+            <p className="text-xs text-muted-foreground">Print opens the invoice PDF in a new tab after marking it sent.</p>
+          ) : (
+            <Field label="Message (optional)">
+              <textarea className={inputClass + " min-h-[72px]"} value={message} onChange={(e) => setMessage(e.target.value)} />
+            </Field>
+          )}
+          {mut.isError ? <p className="text-sm text-sf-accent">{(mut.error as Error).message}</p> : null}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={mut.isPending || !canSubmit}
+            onClick={() => mut.mutate()}
+          >
+            {mut.isPending ? "Sending…" : submitLabel}
+          </button>
+          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.deps import current_user, require
 from app.models import Camp, Clinician, Document, Employee, Expense, Invoice, InvoiceItem, Payment, Reimbursement, User, uid
-from app.schemas import ClinicianPayoutIn, ExpenseIn, InvoiceIn, PaymentIn, ReimbursementIn, RevenueIn
+from app.schemas import ClinicianPayoutIn, ExpenseIn, InvoiceIn, InvoiceSendIn, PaymentIn, ReimbursementIn, RevenueIn
 from app.services.ledger import CATEGORY_ACCOUNT, REVENUE_ACCOUNT, audit, post_transaction, void_transaction
 from app.services.finance import Filters, net_revenue
 
@@ -149,12 +149,26 @@ def get_invoice(invoice_id: str, db: Session = Depends(get_db), user: User = Dep
 
 
 @router.post("/invoices/{invoice_id}/send")
-def send_invoice(invoice_id: str, db: Session = Depends(get_db), user: User = Depends(require("approve"))):
-    inv = db.scalar(select(Invoice).where(Invoice.id == invoice_id).options(joinedload(Invoice.items)))
+def send_invoice(
+    invoice_id: str,
+    body: InvoiceSendIn = InvoiceSendIn(),
+    db: Session = Depends(get_db),
+    user: User = Depends(require("approve")),
+):
+    inv = db.scalar(select(Invoice).where(Invoice.id == invoice_id).options(joinedload(Invoice.items), joinedload(Invoice.client)))
     if not inv or inv.org_id != user.org_id:
         raise HTTPException(404, "Invoice not found.")
     if inv.status not in {"draft", "approved"}:
         raise HTTPException(400, "Only draft invoices can be sent.")
+    payload = body
+    channel = (payload.channel or "email").lower()
+    if channel not in {"email", "whatsapp", "sms", "print"}:
+        raise HTTPException(400, "Channel must be email, whatsapp, sms, or print.")
+    if channel in {"email"} and not (payload.recipient_email or "").strip():
+        raise HTTPException(400, "Enter a recipient email for email delivery.")
+    if channel in {"whatsapp", "sms"} and not (payload.recipient_phone or "").strip():
+        raise HTTPException(400, "Enter a recipient phone for WhatsApp/SMS.")
+
     from app.models import Transaction
     existing = db.scalar(
         select(Transaction.id).where(
@@ -178,8 +192,34 @@ def send_invoice(invoice_id: str, db: Session = Depends(get_db), user: User = De
             "package_id": pkg_id, "invoice_id": inv.id, "channel": "b2b", "business_model": "b2b", "source": "invoice",
         },
     )
+    send_note = (
+        f"channel={channel}; name={payload.recipient_name or ''}; "
+        f"email={payload.recipient_email or ''}; phone={payload.recipient_phone or ''}"
+    )
+    if payload.message:
+        send_note += f"; message={payload.message[:200]}"
+    audit(
+        db,
+        user.org_id,
+        user.id,
+        "invoice.send",
+        "invoice",
+        inv.id,
+        after=send_note,
+        reason=(payload.message or "")[:255] or None,
+    )
     db.commit()
-    return {"id": inv.id, "status": inv.status}
+    return {
+        "id": inv.id,
+        "status": inv.status,
+        "channel": channel,
+        "recipient_name": payload.recipient_name,
+        "recipient_email": payload.recipient_email,
+        "recipient_phone": payload.recipient_phone,
+        "pdf_path": f"/api/v1/invoices/{inv.id}/pdf",
+        "delivery": "recorded",
+        "note": "Delivery intent recorded. Connect an email/SMS/WhatsApp provider for live sending; print opens the PDF.",
+    }
 
 
 @router.post("/payments")

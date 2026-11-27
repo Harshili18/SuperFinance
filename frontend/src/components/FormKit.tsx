@@ -36,6 +36,7 @@ export function PanelForm({
   children,
   busy,
   submit = "Save",
+  extraActions,
 }: {
   title: string;
   onSubmit: (e: FormEvent) => void;
@@ -43,6 +44,7 @@ export function PanelForm({
   children: ReactNode;
   busy?: boolean;
   submit?: string;
+  extraActions?: ReactNode;
 }) {
   return (
     <form onSubmit={onSubmit} className="surface-card mb-3 p-3.5 md:p-4">
@@ -52,6 +54,7 @@ export function PanelForm({
         <button disabled={busy} className="btn-primary">
           {busy ? "Saving…" : submit}
         </button>
+        {extraActions}
         {onCancel ? (
           <button type="button" className="btn-ghost" onClick={onCancel}>
             Cancel
